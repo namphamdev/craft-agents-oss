@@ -906,9 +906,9 @@ export class CraftAgent {
             this.lastStderrOutput.shift();
           }
         },
-        // Beta features (only when using direct Anthropic API, not OpenRouter/etc.)
-        // - advanced-tool-use-2025-11-20: Enhanced tool use capabilities
-        ...(useAnthropicBetas ? { betas: ['advanced-tool-use-2025-11-20'] as any } : {}),
+      // Beta features (only when using direct Anthropic API, not OpenRouter/etc.)
+      // - context-1m-2025-08-07: Expanded context window beta
+      ...(useAnthropicBetas ? { betas: ['context-1m-2025-08-07'] as any } : {}),
         // Extended thinking: tokens based on effective thinking level (session level + ultrathink override)
         // Non-Claude models don't support extended thinking, so pass 0 to disable
         // Mini agents also disable thinking for efficiency (quick config edits don't need deep reasoning)

@@ -5,16 +5,29 @@ copyright: Copyright © 2025 Craft Docs Ltd.
 electronVersion: "39.2.7"
 
 # Hook to compile macOS 26+ Liquid Glass icon after packaging
-afterPack: scripts/afterPack.cjs
+afterPack: apps/electron/scripts/afterPack.cjs
 
 directories:
   output: release
   buildResources: resources
 
 files:
-  - dist/**/*
-  - "!dist/renderer/src/**"
+  # Exclude development files and source code FIRST
+  - "!src/**/*"
+  - "!scripts/**/*"
+  - "!eslint-rules/**/*"
+  - "!build/**/*"
+  - "!*.config.*"
+  - "!*.md"
+  - "!components.json"
+  - "!tsconfig.json"
+  # Exclude everything from node_modules (will use extraResources for SDK)
+  - "!node_modules/**/*"
+  # Exclude source maps
   - "!**/*.map"
+  - "!dist/renderer/src/**"
+  # Include only necessary files
+  - dist/**/*
   - package.json
   # Bundled assets loaded at runtime via getBundledAssetsDir()
   - dist/assets/docs/**/*
@@ -26,8 +39,6 @@ files:
   - packages/shared/src/network-interceptor.ts
   # Include bundled Bun runtime (platform-specific, set by build script)
   - vendor/bun/**/*
-  # Exclude everything from node_modules (will use extraResources for SDK)
-  - "!node_modules/**/*"
 
 # Include SDK as extraResources to bypass node_modules auto-exclusion
 # Since electron-builder v20.15.2, directories named "node_modules" are automatically excluded
