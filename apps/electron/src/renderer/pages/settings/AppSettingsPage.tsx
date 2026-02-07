@@ -34,6 +34,7 @@ import { useUpdateChecker } from '@/hooks/useUpdateChecker'
 import { useOnboarding } from '@/hooks/useOnboarding'
 import { OnboardingWizard } from '@/components/onboarding'
 import { useAppShellContext } from '@/context/AppShellContext'
+import { Copy, Check, ExternalLink } from 'lucide-react'
 
 export const meta: DetailsPageMeta = {
   navigator: 'settings',
@@ -60,6 +61,10 @@ export default function AppSettingsPage() {
   const updateChecker = useUpdateChecker()
   const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false)
 
+  // Web Bridge state
+  const [webBridgeInfo, setWebBridgeInfo] = useState<{ running: boolean; url: string | null; token: string | null }>({ running: false, url: null, token: null })
+  const [copiedField, setCopiedField] = useState<'url' | 'token' | null>(null)
+
   const handleCheckForUpdates = useCallback(async () => {
     setIsCheckingForUpdates(true)
     try {
@@ -73,13 +78,15 @@ export default function AppSettingsPage() {
   const loadConnectionInfo = useCallback(async () => {
     if (!window.electronAPI) return
     try {
-      const [billing, notificationsOn] = await Promise.all([
+      const [billing, notificationsOn, bridgeInfo] = await Promise.all([
         window.electronAPI.getApiSetup(),
         window.electronAPI.getNotificationsEnabled(),
+        window.electronAPI.getWebBridgeInfo(),
       ])
       setAuthType(billing.authType)
       setHasCredential(billing.hasCredential)
       setNotificationsEnabled(notificationsOn)
+      setWebBridgeInfo(bridgeInfo)
     } catch (error) {
       console.error('Failed to load settings:', error)
     }
@@ -126,6 +133,12 @@ export default function AppSettingsPage() {
   const handleNotificationsEnabledChange = useCallback(async (enabled: boolean) => {
     setNotificationsEnabled(enabled)
     await window.electronAPI.setNotificationsEnabled(enabled)
+  }, [])
+
+  const copyToClipboard = useCallback(async (text: string, field: 'url' | 'token') => {
+    await navigator.clipboard.writeText(text)
+    setCopiedField(field)
+    setTimeout(() => setCopiedField(null), 2000)
   }, [])
 
   return (
@@ -204,6 +217,58 @@ export default function AppSettingsPage() {
                 </button>
               </div>
             </FullscreenOverlayBase>
+
+            {/* Web Remote Access */}
+            <SettingsSection title="Web Remote Access" description="Access your sessions from any browser on the same network.">
+              <SettingsCard>
+                <SettingsRow
+                  label="Status"
+                  description={webBridgeInfo.running ? 'Server is running' : 'Server is not running'}
+                >
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${webBridgeInfo.running ? 'bg-green-500/15 text-green-500' : 'bg-muted text-muted-foreground'}`}>
+                    {webBridgeInfo.running ? 'Active' : 'Inactive'}
+                  </span>
+                </SettingsRow>
+                {webBridgeInfo.running && webBridgeInfo.url && (
+                  <SettingsRow label="URL">
+                    <div className="flex items-center gap-2">
+                      <code className="text-xs bg-muted px-2 py-1 rounded font-mono">{webBridgeInfo.url}</code>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={() => copyToClipboard(webBridgeInfo.url!, 'url')}
+                      >
+                        {copiedField === 'url' ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={() => window.electronAPI.openUrl(webBridgeInfo.url!)}
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </SettingsRow>
+                )}
+                {webBridgeInfo.running && webBridgeInfo.token && (
+                  <SettingsRow label="Auth Token">
+                    <div className="flex items-center gap-2">
+                      <code className="text-xs bg-muted px-2 py-1 rounded font-mono max-w-[200px] truncate">{webBridgeInfo.token}</code>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={() => copyToClipboard(webBridgeInfo.token!, 'token')}
+                      >
+                        {copiedField === 'token' ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                      </Button>
+                    </div>
+                  </SettingsRow>
+                )}
+              </SettingsCard>
+            </SettingsSection>
 
             {/* About */}
             <SettingsSection title="About">

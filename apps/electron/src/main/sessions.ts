@@ -556,6 +556,21 @@ export class SessionManager {
    */
   private activeViewingSession: Map<string, string> = new Map()
 
+  // External event listeners for WebBridge (session events forwarded over WebSocket)
+  private externalEventListeners: Array<(event: SessionEvent) => void> = []
+
+  /**
+   * Register an external listener for session events (used by WebBridge).
+   * Returns a cleanup function to remove the listener.
+   */
+  onSessionEvent(listener: (event: SessionEvent) => void): () => void {
+    this.externalEventListeners.push(listener)
+    return () => {
+      const idx = this.externalEventListeners.indexOf(listener)
+      if (idx >= 0) this.externalEventListeners.splice(idx, 1)
+    }
+  }
+
   setWindowManager(wm: WindowManager): void {
     this.windowManager = wm
   }
@@ -1892,6 +1907,33 @@ export class SessionManager {
       await this.flushSession(managed.id)
       // Notify all windows for this workspace
       this.sendEvent({ type: 'todo_state_changed', sessionId, todoState }, managed.workspace.id)
+    }
+  }
+
+  /**
+   * Clear all messages in a session, resetting it to a fresh state.
+   * Preserves session metadata (name, labels, etc.) but clears messages and agent state.
+   */
+  async clearMessages(sessionId: string): Promise<void> {
+    const managed = this.sessions.get(sessionId)
+    if (managed) {
+      // Cancel any in-progress processing
+      if (managed.isProcessing && managed.agent) {
+        managed.agent.forceAbort()
+        managed.isProcessing = false
+      }
+      // Clear messages and reset agent session
+      managed.messages = []
+      managed.streamingText = ''
+      managed.tokenUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0, contextTokens: 0, costUsd: 0 }
+      if (managed.agent) {
+        managed.agent.clearHistory()
+      }
+      // Persist
+      this.persistSession(managed)
+      await this.flushSession(managed.id)
+      // Notify renderer
+      this.sendEvent({ type: 'session_cleared', sessionId }, managed.workspace.id)
     }
   }
 
@@ -3802,6 +3844,15 @@ To view this task's output:
   }
 
   private sendEvent(event: SessionEvent, workspaceId?: string): void {
+    // Always notify external listeners (WebBridge) regardless of window state
+    for (const listener of this.externalEventListeners) {
+      try {
+        listener(event)
+      } catch {
+        // Don't let external listener errors break event flow
+      }
+    }
+
     if (!this.windowManager) {
       sessionLog.warn('Cannot send event - no window manager')
       return

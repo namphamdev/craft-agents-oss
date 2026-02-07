@@ -439,6 +439,7 @@ export type SessionEvent =
   | { type: 'session_model_changed'; sessionId: string; model: string | null }
   | { type: 'todo_state_changed'; sessionId: string; todoState: TodoState }
   | { type: 'session_deleted'; sessionId: string }
+  | { type: 'session_cleared'; sessionId: string }
   | { type: 'session_shared'; sessionId: string; sharedUrl: string }
   | { type: 'session_unshared'; sessionId: string }
   // Auth request events (unified auth flow)
@@ -492,6 +493,7 @@ export type SessionCommand =
   | { type: 'setPendingPlanExecution'; planPath: string }
   | { type: 'markCompactionComplete' }
   | { type: 'clearPendingPlanExecution' }
+  | { type: 'clearMessages' }
 
 /**
  * Parameters for opening a new chat session
@@ -757,6 +759,9 @@ export const IPC_CHANNELS = {
 
   // Git operations
   GET_GIT_BRANCH: 'git:getBranch',
+
+  // Web Bridge (remote access)
+  WEB_BRIDGE_GET_INFO: 'webBridge:getInfo',
 
   // Git Bash (Windows)
   GITBASH_CHECK: 'gitbash:check',
@@ -1062,6 +1067,9 @@ export interface ElectronAPI {
 
   // Git operations
   getGitBranch(dirPath: string): Promise<string | null>
+
+  // Web Bridge (remote access)
+  getWebBridgeInfo(): Promise<{ running: boolean; url: string | null; token: string | null }>
 
   // Git Bash (Windows)
   checkGitBash(): Promise<GitBashStatus>

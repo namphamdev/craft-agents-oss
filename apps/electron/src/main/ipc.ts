@@ -16,7 +16,7 @@ import { getSessionAttachmentsPath, validateSessionId } from '@craft-agent/share
 import { loadWorkspaceSources, getSourcesBySlugs, type LoadedSource } from '@craft-agent/shared/sources'
 import { isValidThinkingLevel } from '@craft-agent/shared/agent/thinking-levels'
 import { getCredentialManager } from '@craft-agent/shared/credentials'
-import { MarkItDown } from 'markitdown-js'
+import { getToken as getWebBridgeToken } from './web-bridge/auth'
 
 /**
  * Sanitizes a filename to prevent path traversal and filesystem issues.
@@ -396,6 +396,8 @@ export function registerIpcHandlers(sessionManager: SessionManager, windowManage
         return sessionManager.markCompactionComplete(sessionId)
       case 'clearPendingPlanExecution':
         return sessionManager.clearPendingPlanExecution(sessionId)
+      case 'clearMessages':
+        return sessionManager.clearMessages(sessionId)
       default: {
         const _exhaustive: never = command
         throw new Error(`Unknown session command: ${JSON.stringify(command)}`)
@@ -779,6 +781,16 @@ export function registerIpcHandlers(sessionManager: SessionManager, windowManage
     } catch {
       // Not a git repo, git not installed, or other error
       return null
+    }
+  })
+
+  // Web Bridge info (for Settings page display)
+  ipcMain.handle(IPC_CHANNELS.WEB_BRIDGE_GET_INFO, () => {
+    const token = getWebBridgeToken()
+    return {
+      running: !!token,
+      url: token ? 'http://127.0.0.1:19876' : null,
+      token,
     }
   })
 

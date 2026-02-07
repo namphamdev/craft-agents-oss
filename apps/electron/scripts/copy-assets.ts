@@ -51,4 +51,14 @@ if (existsSync('resources/config-defaults.json')) {
   cpSync('resources/config-defaults.json', 'dist/assets/config-defaults.json');
 }
 
+// ============================================================
+// 3. Web Bridge client HTML → dist/web-bridge/client/
+//    Served by the embedded HTTP server for remote web access
+// ============================================================
+const webClientSrc = 'src/main/web-bridge/client';
+if (existsSync(webClientSrc)) {
+  mkdirSync('dist/web-bridge/client', { recursive: true });
+  cpSync(webClientSrc, 'dist/web-bridge/client', { recursive: true });
+}
+
 // Note: PDF.js worker is handled by Vite via ?url import in PDFPreviewOverlay.tsx

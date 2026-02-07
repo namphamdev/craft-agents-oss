@@ -35,6 +35,7 @@ import type {
   AuthRequestEvent,
   AuthCompletedEvent,
   UsageUpdateEvent,
+  SessionClearedEvent,
 } from '../types'
 import type { Message } from '../../../shared/types'
 import { generateMessageId, appendMessage } from '../helpers'
@@ -779,6 +780,28 @@ export function handleUsageUpdate(
         tokenUsage: updatedTokenUsage,
       },
       streaming,
+    },
+    effects: [],
+  }
+}
+
+/**
+ * Handle session_cleared - all messages removed from session
+ */
+export function handleSessionCleared(
+  state: SessionState,
+  _event: SessionClearedEvent
+): ProcessResult {
+  const { session } = state
+  return {
+    state: {
+      session: {
+        ...session,
+        messages: [],
+        isProcessing: false,
+        tokenUsage: { inputTokens: 0, outputTokens: 0, totalTokens: 0, contextTokens: 0, costUsd: 0 },
+      },
+      streaming: null,
     },
     effects: [],
   }

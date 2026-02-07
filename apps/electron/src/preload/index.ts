@@ -462,6 +462,10 @@ const api: ElectronAPI = {
   getGitBranch: (dirPath: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.GET_GIT_BRANCH, dirPath),
 
+  // Web Bridge (remote access)
+  getWebBridgeInfo: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.WEB_BRIDGE_GET_INFO),
+
   // Git Bash (Windows)
   checkGitBash: () => ipcRenderer.invoke(IPC_CHANNELS.GITBASH_CHECK),
   browseForGitBash: () => ipcRenderer.invoke(IPC_CHANNELS.GITBASH_BROWSE),
