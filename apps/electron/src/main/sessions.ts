@@ -880,6 +880,21 @@ export class SessionManager {
   /** Monotonic clock to ensure strictly increasing message timestamps */
   private lastTimestamp = 0
 
+  // External event listeners for WebBridge (session events forwarded over WebSocket)
+  private externalEventListeners: Array<(event: SessionEvent) => void> = []
+
+  /**
+   * Register an external listener for session events (used by WebBridge).
+   * Returns a cleanup function to remove the listener.
+   */
+  onSessionEvent(listener: (event: SessionEvent) => void): () => void {
+    this.externalEventListeners.push(listener)
+    return () => {
+      const idx = this.externalEventListeners.indexOf(listener)
+      if (idx >= 0) this.externalEventListeners.splice(idx, 1)
+    }
+  }
+
   setWindowManager(wm: WindowManager): void {
     this.windowManager = wm
   }
@@ -5151,6 +5166,15 @@ To view this task's output:
   }
 
   private sendEvent(event: SessionEvent, workspaceId?: string): void {
+    // Always notify external listeners (WebBridge) regardless of window state
+    for (const listener of this.externalEventListeners) {
+      try {
+        listener(event)
+      } catch {
+        // Don't let external listener errors break event flow
+      }
+    }
+
     if (!this.windowManager) {
       sessionLog.warn('Cannot send event - no window manager')
       return

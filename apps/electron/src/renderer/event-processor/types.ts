@@ -168,6 +168,14 @@ export interface SessionUnarchivedEvent {
 }
 
 /**
+ * Session cleared event - all messages removed
+ */
+export interface SessionClearedEvent {
+  type: 'session_cleared'
+  sessionId: string
+}
+
+/**
  * Session name changed event (external metadata change)
  */
 export interface NameChangedEvent {
@@ -482,6 +490,7 @@ export type AgentEvent =
   | SourceActivatedEvent
   | UsageUpdateEvent
   | TodosUpdatedEvent
+  | SessionClearedEvent
 
 /**
  * Side effects that need to be handled outside the pure processor

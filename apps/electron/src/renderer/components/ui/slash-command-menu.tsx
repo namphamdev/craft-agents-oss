@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Command as CommandPrimitive } from 'cmdk'
-import { Brain, Check } from 'lucide-react'
+import { Brain, Check, Trash2 } from 'lucide-react'
 import { Icon_Folder } from '@craft-agent/ui'
 import { cn } from '@/lib/utils'
 import { PERMISSION_MODE_CONFIG, PERMISSION_MODE_ORDER, type PermissionMode } from '@craft-agent/shared/agent/modes'
@@ -9,7 +9,7 @@ import { PERMISSION_MODE_CONFIG, PERMISSION_MODE_ORDER, type PermissionMode } fr
 // Types
 // ============================================================================
 
-export type SlashCommandId = 'safe' | 'ask' | 'allow-all' | 'ultrathink'
+export type SlashCommandId = 'safe' | 'ask' | 'allow-all' | 'ultrathink' | 'clear'
 
 /** Union type for all item types in the slash menu */
 export type SlashItemType = 'command' | 'folder'
@@ -96,14 +96,22 @@ const ultrathinkCommand: SlashCommand = {
   icon: <Brain className={MENU_ICON_SIZE} />,
 }
 
+const clearCommand: SlashCommand = {
+  id: 'clear',
+  label: 'Clear',
+  description: 'Clear all messages in conversation',
+  icon: <Trash2 className={MENU_ICON_SIZE} />,
+}
+
 export const DEFAULT_SLASH_COMMANDS: SlashCommand[] = [
   ...permissionModeCommands,
   ultrathinkCommand,
+  clearCommand,
 ]
 
 export const DEFAULT_SLASH_COMMAND_GROUPS: CommandGroup[] = [
   { id: 'modes', commands: permissionModeCommands },
-  { id: 'features', commands: [ultrathinkCommand] },
+  { id: 'features', commands: [ultrathinkCommand, clearCommand] },
 ]
 
 // ============================================================================
@@ -569,7 +577,7 @@ export function useInlineSlashCommand({
     result.push({
       id: 'features',
       label: 'Features',
-      items: [ultrathinkCommand],
+      items: [ultrathinkCommand, clearCommand],
     })
 
     // Recent folders section - sorted alphabetically by folder name, show all

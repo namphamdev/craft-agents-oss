@@ -48,6 +48,7 @@ import {
   handleAuthCompleted,
   handleUsageUpdate,
   handleTodosUpdated,
+  handleSessionCleared,
 } from './handlers/session'
 
 /**
@@ -209,6 +210,9 @@ export function processEvent(
       // Codex's turn/plan/updated notification - synthesize a TodoWrite tool message
       // This allows reusing existing turn-utils extraction logic for TurnCard todos
       return handleTodosUpdated(state, event)
+
+    case 'session_cleared':
+      return handleSessionCleared(state, event)
 
     default: {
       // Unknown event type - return state unchanged but as new reference

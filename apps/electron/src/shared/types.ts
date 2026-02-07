@@ -480,6 +480,7 @@ export type SessionEvent =
   | { type: 'sessions_reordered' }
   | { type: 'session_archived_cascade'; sessionId: string; count: number }
   | { type: 'session_deleted_cascade'; sessionId: string; count: number }
+  | { type: 'session_cleared'; sessionId: string }
   | { type: 'session_shared'; sessionId: string; sharedUrl: string }
   | { type: 'session_unshared'; sessionId: string }
   // Auth request events (unified auth flow)
@@ -852,6 +853,9 @@ export const IPC_CHANNELS = {
   // Git operations
   GET_GIT_BRANCH: 'git:getBranch',
 
+  // Web Bridge (remote access)
+  WEB_BRIDGE_GET_INFO: 'webBridge:getInfo',
+
   // Git Bash (Windows)
   GITBASH_CHECK: 'gitbash:check',
   GITBASH_BROWSE: 'gitbash:browse',
@@ -1157,6 +1161,9 @@ export interface ElectronAPI {
 
   // Git operations
   getGitBranch(dirPath: string): Promise<string | null>
+
+  // Web Bridge (remote access)
+  getWebBridgeInfo(): Promise<{ running: boolean; url: string | null; token: string | null }>
 
   // Git Bash (Windows)
   checkGitBash(): Promise<GitBashStatus>

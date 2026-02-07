@@ -86,6 +86,7 @@ import log, { isDebugMode, mainLog, getLogFilePath } from './logger'
 import { setPerfEnabled, enableDebug } from '@craft-agent/shared/utils'
 import { initNotificationService, clearBadgeCount, initBadgeIcon, initInstanceBadge } from './notifications'
 import { checkForUpdatesOnLaunch, setWindowManager as setAutoUpdateWindowManager, isUpdating } from './auto-update'
+import { startWebBridge, type WebBridgeInstance } from './web-bridge'
 
 // Initialize electron-log for renderer process support
 log.initialize()
@@ -103,6 +104,7 @@ const DEEPLINK_SCHEME = process.env.CRAFT_DEEPLINK_SCHEME || 'craftagents'
 
 let windowManager: WindowManager | null = null
 let sessionManager: SessionManager | null = null
+let webBridge: WebBridgeInstance | null = null
 
 // Store pending deep link if app not ready yet (cold start)
 let pendingDeepLink: string | null = null
@@ -302,6 +304,26 @@ app.whenReady().then(async () => {
     // Create initial windows (restores from saved state or opens first workspace)
     await createInitialWindows()
 
+    // Start WebBridge server for web remote access (before initialize, so it's
+    // available even if auth init fails)
+    try {
+      webBridge = await startWebBridge({
+        sessionManager,
+        port: 19876,
+        bindAddress: '127.0.0.1',
+      })
+      // Forward session events to WebSocket clients
+      sessionManager.onSessionEvent((event) => {
+        webBridge?.broadcast(event)
+      })
+      const info = webBridge.getAccessInfo()
+      mainLog.info(`[web-bridge] Server running at ${info.url}`)
+      mainLog.info(`[web-bridge] Auth token: ${info.token}`)
+    } catch (err) {
+      mainLog.warn('[web-bridge] Failed to start:', err)
+      // Non-fatal — app continues without web bridge
+    }
+
     // Initialize auth (must happen after window creation for error reporting)
     await sessionManager.initialize()
 
@@ -426,6 +448,16 @@ app.on('before-quit', async (event) => {
 
   // Flush all pending session writes before quitting
   if (sessionManager) {
+    // Stop WebBridge before flushing sessions
+    if (webBridge) {
+      try {
+        await webBridge.stop()
+        mainLog.info('[web-bridge] Server stopped')
+      } catch (err) {
+        mainLog.warn('[web-bridge] Error stopping server:', err)
+      }
+    }
+
     // Prevent quit until sessions are flushed
     event.preventDefault()
     try {
