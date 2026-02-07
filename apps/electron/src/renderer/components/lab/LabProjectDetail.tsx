@@ -19,6 +19,7 @@ import {
   Sparkles,
   Trash2,
   Pencil,
+  FolderOpen,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -124,6 +125,50 @@ export function LabProjectDetail({
             </div>
           </section>
         )}
+
+        {/* Working Directory */}
+        <section className="space-y-3">
+          <div className="flex items-center gap-2">
+            <FolderOpen className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-medium">Working Directory</h2>
+          </div>
+          <div className="flex items-center gap-2 pl-6">
+            <div className="flex-1 min-w-0 text-sm">
+              {project.workingDirectory ? (
+                <span className="truncate block text-foreground">{project.workingDirectory}</span>
+              ) : (
+                <span className="text-muted-foreground">Not set (agents won&apos;t have a file context)</span>
+              )}
+            </div>
+            {project.workingDirectory && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="shrink-0 h-7 text-xs text-muted-foreground hover:text-destructive"
+                onClick={() => {
+                  onUpdateProject({ ...project, workingDirectory: undefined, updatedAt: Date.now() })
+                }}
+              >
+                <X className="h-3 w-3 mr-1" />
+                Clear
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="shrink-0 h-7 text-xs gap-1"
+              onClick={async () => {
+                const path = await window.electronAPI?.openFolderDialog()
+                if (path) {
+                  onUpdateProject({ ...project, workingDirectory: path, updatedAt: Date.now() })
+                }
+              }}
+            >
+              <FolderOpen className="h-3 w-3" />
+              {project.workingDirectory ? 'Change' : 'Choose Folder'}
+            </Button>
+          </div>
+        </section>
 
         <Separator />
 

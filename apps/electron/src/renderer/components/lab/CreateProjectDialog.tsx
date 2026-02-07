@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react'
+import { FolderOpen, X } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -34,6 +35,7 @@ export function CreateProjectDialog({
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [goalsText, setGoalsText] = useState('')
+  const [workingDirectory, setWorkingDirectory] = useState<string | undefined>(undefined)
 
   useRegisterModal(open, () => onOpenChange(false))
 
@@ -43,6 +45,7 @@ export function CreateProjectDialog({
       setName('')
       setDescription('')
       setGoalsText('')
+      setWorkingDirectory(undefined)
       const timer = setTimeout(() => nameRef.current?.focus(), 0)
       return () => clearTimeout(timer)
     }
@@ -60,6 +63,7 @@ export function CreateProjectDialog({
       name: name.trim(),
       description: description.trim(),
       goals,
+      workingDirectory,
     })
     onOpenChange(false)
   }
@@ -117,6 +121,49 @@ export function CreateProjectDialog({
               onChange={(e) => setGoalsText(e.target.value)}
               placeholder={"Secure login and registration\nOAuth integration\nRole-based access control"}
             />
+          </div>
+
+          {/* Working Directory */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">
+              Working Directory (optional)
+            </label>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 min-w-0 rounded-md border border-input px-3 py-2 text-sm">
+                {workingDirectory ? (
+                  <span className="truncate block">{workingDirectory}</span>
+                ) : (
+                  <span className="text-muted-foreground">No folder selected</span>
+                )}
+              </div>
+              {workingDirectory && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 h-8 w-8"
+                  onClick={() => setWorkingDirectory(undefined)}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0 gap-1.5"
+                onClick={async () => {
+                  const path = await window.electronAPI?.openFolderDialog()
+                  if (path) setWorkingDirectory(path)
+                }}
+              >
+                <FolderOpen className="h-3.5 w-3.5" />
+                Browse
+              </Button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              The folder where agents will read and write files during pipeline execution.
+            </p>
           </div>
         </div>
 
