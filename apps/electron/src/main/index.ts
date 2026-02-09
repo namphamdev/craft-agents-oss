@@ -106,6 +106,11 @@ let windowManager: WindowManager | null = null
 let sessionManager: SessionManager | null = null
 let webBridge: WebBridgeInstance | null = null
 
+/** Get the WebBridge instance (used by IPC handlers) */
+export function getWebBridge(): WebBridgeInstance | null {
+  return webBridge
+}
+
 // Store pending deep link if app not ready yet (cold start)
 let pendingDeepLink: string | null = null
 
@@ -311,6 +316,7 @@ app.whenReady().then(async () => {
         sessionManager,
         port: 19876,
         bindAddress: '127.0.0.1',
+        customToken: getWebBridgeCustomToken(),
       })
       // Forward session events to WebSocket clients
       sessionManager.onSessionEvent((event) => {

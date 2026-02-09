@@ -855,6 +855,8 @@ export const IPC_CHANNELS = {
 
   // Web Bridge (remote access)
   WEB_BRIDGE_GET_INFO: 'webBridge:getInfo',
+  WEB_BRIDGE_SET_TOKEN: 'webBridge:setToken',
+  WEB_BRIDGE_RESET_TOKEN: 'webBridge:resetToken',
 
   // Git Bash (Windows)
   GITBASH_CHECK: 'gitbash:check',
@@ -1164,6 +1166,8 @@ export interface ElectronAPI {
 
   // Web Bridge (remote access)
   getWebBridgeInfo(): Promise<{ running: boolean; url: string | null; token: string | null }>
+  setWebBridgeToken(token: string): Promise<{ success: boolean; token?: string; error?: string }>
+  resetWebBridgeToken(): Promise<{ success: boolean; token?: string; error?: string }>
 
   // Git Bash (Windows)
   checkGitBash(): Promise<GitBashStatus>

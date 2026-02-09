@@ -2,12 +2,28 @@ import { randomBytes, timingSafeEqual } from 'crypto'
 
 let serverToken: string | null = null
 
+/** Minimum length for custom auth codes */
+const MIN_TOKEN_LENGTH = 4
+
 /**
- * Generate a new bearer token for the WebBridge server.
- * Called once on server start. Returns the token for display to the user.
+ * Generate a new random bearer token for the WebBridge server.
+ * Called on server start if no custom token is set. Returns the token for display.
  */
 export function generateToken(): string {
   serverToken = randomBytes(32).toString('hex')
+  return serverToken
+}
+
+/**
+ * Set a custom auth token (user-provided auth code).
+ * Must be at least MIN_TOKEN_LENGTH characters.
+ * Returns the token on success, or throws if invalid.
+ */
+export function setToken(customToken: string): string {
+  if (!customToken || customToken.length < MIN_TOKEN_LENGTH) {
+    throw new Error(`Auth code must be at least ${MIN_TOKEN_LENGTH} characters`)
+  }
+  serverToken = customToken
   return serverToken
 }
 

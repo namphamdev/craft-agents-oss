@@ -189,7 +189,17 @@ export function createWebBridgeServer(options: WebBridgeServerOptions) {
     })
   }
 
-  return { start, stop, broadcast }
+  /**
+   * Disconnect all WebSocket clients (e.g., when auth token changes).
+   */
+  function disconnectAll(): void {
+    for (const client of wsClients) {
+      client.close(4001, 'Token changed')
+    }
+    wsClients.clear()
+  }
+
+  return { start, stop, broadcast, disconnectAll }
 }
 
 /**

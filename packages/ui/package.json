@@ -14,6 +14,9 @@
     "./chat/turn-utils": "./src/components/chat/turn-utils.ts",
     "./markdown": "./src/components/markdown/index.ts",
     "./context": "./src/context/index.ts",
+    "./adapters": "./src/adapters/index.ts",
+    "./adapters/electron": "./src/adapters/electron.ts",
+    "./adapters/web": "./src/adapters/web.ts",
     "./styles": "./src/styles/index.css"
   },
   "dependencies": {

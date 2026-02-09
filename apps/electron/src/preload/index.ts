@@ -493,6 +493,10 @@ const api: ElectronAPI = {
   // Web Bridge (remote access)
   getWebBridgeInfo: () =>
     ipcRenderer.invoke(IPC_CHANNELS.WEB_BRIDGE_GET_INFO),
+  setWebBridgeToken: (token: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.WEB_BRIDGE_SET_TOKEN, token),
+  resetWebBridgeToken: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.WEB_BRIDGE_RESET_TOKEN),
 
   // Git Bash (Windows)
   checkGitBash: () => ipcRenderer.invoke(IPC_CHANNELS.GITBASH_CHECK),

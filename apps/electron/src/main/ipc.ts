@@ -17,7 +17,9 @@ import { getSessionAttachmentsPath, validateSessionId } from '@craft-agent/share
 import { loadWorkspaceSources, getSourcesBySlugs, type LoadedSource } from '@craft-agent/shared/sources'
 import { isValidThinkingLevel } from '@craft-agent/shared/agent/thinking-levels'
 import { getCredentialManager } from '@craft-agent/shared/credentials'
-import { getToken as getWebBridgeToken } from './web-bridge/auth'
+import { getToken as getWebBridgeToken, setToken as setWebBridgeToken } from './web-bridge/auth'
+import { getWebBridge } from './index'
+import { getWebBridgeCustomToken, setWebBridgeCustomToken } from '@craft-agent/shared/config'
 
 /**
  * Sanitizes a filename to prevent path traversal and filesystem issues.
@@ -1003,6 +1005,36 @@ export function registerIpcHandlers(sessionManager: SessionManager, windowManage
       running: !!token,
       url: token ? 'http://127.0.0.1:19876' : null,
       token,
+    }
+  })
+
+  // Web Bridge: set custom auth token
+  ipcMain.handle(IPC_CHANNELS.WEB_BRIDGE_SET_TOKEN, (_event, customToken: string) => {
+    const bridge = getWebBridge()
+    if (!bridge) {
+      return { success: false, error: 'Web Bridge is not running' }
+    }
+    try {
+      const newToken = bridge.setCustomToken(customToken)
+      setWebBridgeCustomToken(newToken) // persist across restarts
+      return { success: true, token: newToken }
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to set token' }
+    }
+  })
+
+  // Web Bridge: reset to random token
+  ipcMain.handle(IPC_CHANNELS.WEB_BRIDGE_RESET_TOKEN, () => {
+    const bridge = getWebBridge()
+    if (!bridge) {
+      return { success: false, error: 'Web Bridge is not running' }
+    }
+    try {
+      const newToken = bridge.resetToken()
+      setWebBridgeCustomToken(null) // clear persisted custom token
+      return { success: true, token: newToken }
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to reset token' }
     }
   })
 
