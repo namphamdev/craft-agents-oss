@@ -1,0 +1,17 @@
+{
+  "name": "@craft-agent/web-server",
+  "version": "0.3.5",
+  "description": "HTTP/SSE server for Craft Agents web app - wraps @craft-agent/shared",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "start": "bun src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@craft-agent/core": "workspace:*",
+    "@craft-agent/shared": "workspace:*"
+  }
+}

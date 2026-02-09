@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { generateToken, getToken } from './auth'
+import { generateToken, getToken, setToken } from './auth'
 import { createWebBridgeServer } from './server'
 import { createRoutes } from './routes'
 import type { SessionManager } from '../sessions'
@@ -10,6 +10,8 @@ export interface WebBridgeOptions {
   sessionManager: SessionManager
   port?: number
   bindAddress?: string
+  /** Optional persisted custom auth token (restored from config on startup) */
+  customToken?: string | null
 }
 
 export interface WebBridgeInstance {
@@ -17,6 +19,10 @@ export interface WebBridgeInstance {
   broadcast(event: SessionEvent): void
   /** Get access info for display (URL + token) */
   getAccessInfo(): { url: string; token: string }
+  /** Set a custom auth token, disconnecting all existing clients */
+  setCustomToken(customToken: string): string
+  /** Reset to a random token, disconnecting all existing clients */
+  resetToken(): string
   /** Stop the server */
   stop(): Promise<void>
 }
@@ -26,10 +32,14 @@ export interface WebBridgeInstance {
  * SessionManager functionality to web browser clients.
  */
 export async function startWebBridge(options: WebBridgeOptions): Promise<WebBridgeInstance> {
-  const { sessionManager, port = 19876, bindAddress = '127.0.0.1' } = options
+  const { sessionManager, port = 19876, bindAddress = '127.0.0.1', customToken } = options
 
-  // Generate auth token
-  const token = generateToken()
+  // Use persisted custom token if available, otherwise generate random one
+  if (customToken) {
+    setToken(customToken)
+  } else {
+    generateToken()
+  }
 
   // Load the embedded web client HTML
   // After build:copy, the file lives at dist/web-bridge/client/index.html
@@ -70,6 +80,16 @@ export async function startWebBridge(options: WebBridgeOptions): Promise<WebBrid
   return {
     broadcast: server.broadcast,
     getAccessInfo: () => ({ url, token: getToken()! }),
+    setCustomToken: (customToken: string) => {
+      const newToken = setToken(customToken)
+      server.disconnectAll()
+      return newToken
+    },
+    resetToken: () => {
+      const newToken = generateToken()
+      server.disconnectAll()
+      return newToken
+    },
     stop: server.stop,
   }
 }

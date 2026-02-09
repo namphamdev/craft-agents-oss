@@ -51,6 +51,8 @@ export interface StoredConfig {
   autoCapitalisation?: boolean;  // Auto-capitalize first letter when typing (default: true)
   sendMessageKey?: 'enter' | 'cmd-enter';  // Key to send messages (default: 'enter')
   spellCheck?: boolean;  // Enable spell check in input (default: false)
+  // Web Bridge (remote access)
+  webBridgeCustomToken?: string;  // Custom auth code for web remote access (if set, used instead of random token)
 }
 
 const CONFIG_FILE = join(CONFIG_DIR, 'config.json');
@@ -322,6 +324,30 @@ export function setSpellCheck(enabled: boolean): void {
   const config = loadStoredConfig();
   if (!config) return;
   config.spellCheck = enabled;
+  saveConfig(config);
+}
+
+/**
+ * Get the custom web bridge auth token (if set).
+ * Returns null if not set (random token will be used).
+ */
+export function getWebBridgeCustomToken(): string | null {
+  const config = loadStoredConfig();
+  return config?.webBridgeCustomToken ?? null;
+}
+
+/**
+ * Set a custom web bridge auth token (persists across restarts).
+ * Pass null to clear (will use random token on next start).
+ */
+export function setWebBridgeCustomToken(token: string | null): void {
+  const config = loadStoredConfig();
+  if (!config) return;
+  if (token) {
+    config.webBridgeCustomToken = token;
+  } else {
+    delete config.webBridgeCustomToken;
+  }
   saveConfig(config);
 }
 

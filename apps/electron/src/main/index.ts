@@ -84,7 +84,7 @@ import { registerIpcHandlers } from './ipc'
 import { createApplicationMenu } from './menu'
 import { WindowManager } from './window-manager'
 import { loadWindowState, saveWindowState } from './window-state'
-import { getWorkspaces, loadStoredConfig } from '@craft-agent/shared/config'
+import { getWorkspaces, loadStoredConfig, getWebBridgeCustomToken } from '@craft-agent/shared/config'
 import { initializeDocs } from '@craft-agent/shared/docs'
 import { ensureDefaultPermissions } from '@craft-agent/shared/agent/permissions-config'
 import { ensureToolIcons } from '@craft-agent/shared/config'
@@ -114,6 +114,11 @@ const DEEPLINK_SCHEME = process.env.CRAFT_DEEPLINK_SCHEME || 'craftagents'
 let windowManager: WindowManager | null = null
 let sessionManager: SessionManager | null = null
 let webBridge: WebBridgeInstance | null = null
+
+/** Get the WebBridge instance (used by IPC handlers) */
+export function getWebBridge(): WebBridgeInstance | null {
+  return webBridge
+}
 
 // Store pending deep link if app not ready yet (cold start)
 let pendingDeepLink: string | null = null
@@ -293,6 +298,7 @@ app.whenReady().then(async () => {
         sessionManager,
         port: 19876,
         bindAddress: '127.0.0.1',
+        customToken: getWebBridgeCustomToken(),
       })
       // Forward session events to WebSocket clients
       sessionManager.onSessionEvent((event) => {

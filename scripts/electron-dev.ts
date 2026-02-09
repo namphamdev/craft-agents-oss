@@ -18,6 +18,10 @@ const BIN_EXT = IS_WINDOWS ? ".exe" : "";
 const VITE_BIN = join(ROOT_DIR, `node_modules/.bin/vite${BIN_EXT}`);
 const ELECTRON_BIN = join(ROOT_DIR, `node_modules/.bin/electron${BIN_EXT}`);
 
+// Web server port for debug web app (accessed via Electron's secondary window)
+const WEB_SERVER_PORT = "19877";
+const WEB_APP_PORT = "19878";
+
 // Load .env file if it exists
 function loadEnvFile(): void {
   const envPath = join(ROOT_DIR, ".env");
@@ -151,6 +155,8 @@ function getElectronEnv(): Record<string, string> {
     CRAFT_APP_NAME: process.env.CRAFT_APP_NAME || "Craft Agents",
     CRAFT_DEEPLINK_SCHEME: process.env.CRAFT_DEEPLINK_SCHEME || "craftagents",
     CRAFT_INSTANCE_NUMBER: process.env.CRAFT_INSTANCE_NUMBER || "",
+    // Web app URL for debug window
+    CRAFT_WEB_APP_URL: `http://localhost:${WEB_APP_PORT}`,
   };
 }
 
@@ -329,6 +335,42 @@ async function main(): Promise<void> {
 
   const processes: Subprocess[] = [];
   const esbuildContexts: esbuild.BuildContext[] = [];
+
+  // Kill any process on web server/app ports before starting
+  await Promise.all([
+    killProcessOnPort(WEB_SERVER_PORT),
+    killProcessOnPort(WEB_APP_PORT),
+  ]);
+
+  // 0. Start web-server (REST + SSE backend for debug web app)
+  const webServerProc = spawn({
+    cmd: ["bun", "apps/web-server/src/index.ts"],
+    cwd: ROOT_DIR,
+    stdin: "ignore",
+    stdout: "inherit",
+    stderr: "inherit",
+    env: {
+      ...process.env as Record<string, string>,
+      CRAFT_WEB_SERVER_PORT: WEB_SERVER_PORT,
+    },
+  });
+  processes.push(webServerProc);
+  console.log(`🌐 Web server starting on port ${WEB_SERVER_PORT}...`);
+
+  // 0b. Start web app Vite dev server
+  const webAppProc = spawn({
+    cmd: [VITE_BIN, "dev", "--config", "apps/web/vite.config.ts", "--port", WEB_APP_PORT, "--strictPort"],
+    cwd: ROOT_DIR,
+    stdin: "ignore",
+    stdout: "inherit",
+    stderr: "inherit",
+    env: {
+      ...process.env as Record<string, string>,
+      CRAFT_WEB_SERVER_PORT: WEB_SERVER_PORT,
+    },
+  });
+  processes.push(webAppProc);
+  console.log(`🌐 Web app starting on port ${WEB_APP_PORT}...`);
 
   // 1. Vite dev server (strictPort ensures we don't silently switch ports)
   const viteProc = spawn({

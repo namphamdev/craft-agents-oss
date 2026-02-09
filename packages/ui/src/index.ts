@@ -23,6 +23,22 @@ export {
   ShikiThemeProvider,
   useShikiTheme,
   type ShikiThemeProviderProps,
+  // App adapter (interactive mode)
+  AppAdapterProvider,
+  useAppAdapter,
+  useOptionalAppAdapter,
+  type AppAdapter,
+  type CreateSessionOptions,
+  type SendMessageOptions,
+  type AdapterFileAttachment,
+  type AdapterStoredAttachment,
+  type AdapterCredentialResponse,
+  type AdapterPermissionMode,
+  type AdapterThinkingLevel,
+  type AdapterLoadedSource,
+  type AdapterLoadedSkill,
+  type AdapterSessionEvent,
+  type WorkspaceInfo,
 } from './context'
 
 // Chat components

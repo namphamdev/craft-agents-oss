@@ -1,0 +1,32 @@
+/**
+ * Craft Agent Web - Main stylesheet
+ *
+ * Imports the shared UI theme and adds web-specific styles.
+ */
+
+@import "@craft-agent/ui/styles";
+
+/* Scan this app's source files for Tailwind classes */
+@source "../src/**/*.{tsx,ts}";
+
+/* CRITICAL: Also scan packages/ui components for Tailwind classes */
+@source "../../../packages/ui/src/**/*.{tsx,ts}";
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: oklch(from var(--foreground) l c h / 0.15);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(from var(--foreground) l c h / 0.25);
+}

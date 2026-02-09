@@ -64,6 +64,9 @@ export default function AppSettingsPage() {
   // Web Bridge state
   const [webBridgeInfo, setWebBridgeInfo] = useState<{ running: boolean; url: string | null; token: string | null }>({ running: false, url: null, token: null })
   const [copiedField, setCopiedField] = useState<'url' | 'token' | null>(null)
+  const [customAuthCode, setCustomAuthCode] = useState('')
+  const [authCodeError, setAuthCodeError] = useState<string | null>(null)
+  const [isSettingToken, setIsSettingToken] = useState(false)
 
   const handleCheckForUpdates = useCallback(async () => {
     setIsCheckingForUpdates(true)
@@ -139,6 +142,46 @@ export default function AppSettingsPage() {
     await navigator.clipboard.writeText(text)
     setCopiedField(field)
     setTimeout(() => setCopiedField(null), 2000)
+  }, [])
+
+  const handleSetCustomToken = useCallback(async () => {
+    if (!customAuthCode.trim()) {
+      setAuthCodeError('Auth code cannot be empty')
+      return
+    }
+    setIsSettingToken(true)
+    setAuthCodeError(null)
+    try {
+      const result = await window.electronAPI.setWebBridgeToken(customAuthCode.trim())
+      if (result.success && result.token) {
+        setWebBridgeInfo(prev => ({ ...prev, token: result.token! }))
+        setCustomAuthCode('')
+      } else {
+        setAuthCodeError(result.error || 'Failed to set auth code')
+      }
+    } catch (error) {
+      setAuthCodeError('Failed to set auth code')
+    } finally {
+      setIsSettingToken(false)
+    }
+  }, [customAuthCode])
+
+  const handleResetToken = useCallback(async () => {
+    setIsSettingToken(true)
+    setAuthCodeError(null)
+    try {
+      const result = await window.electronAPI.resetWebBridgeToken()
+      if (result.success && result.token) {
+        setWebBridgeInfo(prev => ({ ...prev, token: result.token! }))
+        setCustomAuthCode('')
+      } else {
+        setAuthCodeError(result.error || 'Failed to reset token')
+      }
+    } catch {
+      setAuthCodeError('Failed to reset token')
+    } finally {
+      setIsSettingToken(false)
+    }
   }, [])
 
   return (
@@ -264,6 +307,46 @@ export default function AppSettingsPage() {
                       >
                         {copiedField === 'token' ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
                       </Button>
+                    </div>
+                  </SettingsRow>
+                )}
+                {webBridgeInfo.running && (
+                  <SettingsRow
+                    label="Custom Auth Code"
+                    description="Set a memorable auth code instead of the random token."
+                  >
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={customAuthCode}
+                          onChange={(e) => { setCustomAuthCode(e.target.value); setAuthCodeError(null) }}
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleSetCustomToken() }}
+                          placeholder="Enter custom code..."
+                          className="w-[180px] text-xs bg-muted/50 px-2 py-1.5 rounded border border-transparent focus:border-ring focus:outline-none"
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={handleSetCustomToken}
+                          disabled={isSettingToken || !customAuthCode.trim()}
+                        >
+                          Set
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs text-muted-foreground"
+                          onClick={handleResetToken}
+                          disabled={isSettingToken}
+                        >
+                          Reset
+                        </Button>
+                      </div>
+                      {authCodeError && (
+                        <p className="text-xs text-destructive">{authCodeError}</p>
+                      )}
                     </div>
                   </SettingsRow>
                 )}

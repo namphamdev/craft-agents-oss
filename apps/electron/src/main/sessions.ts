@@ -1509,8 +1509,8 @@ export class SessionManager {
       isFlagged: options?.isFlagged,
     })
 
-    // Model priority: options.model > storedSession.model > workspace default
-    const resolvedModel = options?.model || storedSession.model || defaultModel
+    // Model priority: options.model > storedSession.model > global custom model > workspace default
+    const resolvedModel = options?.model || storedSession.model || resolveModelId(defaultModel)
 
     // Log mini agent session creation
     if (options?.systemPromptPreset === 'mini' || options?.model) {
