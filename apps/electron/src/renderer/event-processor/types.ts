@@ -367,6 +367,14 @@ export interface SessionUnsharedEvent {
 }
 
 /**
+ * Messages cleared event - all messages removed from session
+ */
+export interface MessagesClearedEvent {
+  type: 'messages_cleared'
+  sessionId: string
+}
+
+/**
  * Auth request event - unified auth flow (credential or OAuth)
  * Adds auth-request message to session and displays inline auth UI
  */
@@ -468,6 +476,7 @@ export type AgentEvent =
   | UserMessageEvent
   | SessionSharedEvent
   | SessionUnsharedEvent
+  | MessagesClearedEvent
   | AuthRequestEvent
   | AuthCompletedEvent
   | SourceActivatedEvent

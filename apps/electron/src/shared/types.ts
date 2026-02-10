@@ -474,6 +474,7 @@ export type SessionEvent =
   | { type: 'session_model_changed'; sessionId: string; model: string | null }
   | { type: 'todo_state_changed'; sessionId: string; todoState: TodoState }
   | { type: 'session_deleted'; sessionId: string }
+  | { type: 'messages_cleared'; sessionId: string }
   // Sub-session events
   | { type: 'session_created'; sessionId: string; parentSessionId?: string }
   | { type: 'sessions_reordered' }
@@ -555,6 +556,7 @@ export type SessionCommand =
   | { type: 'updateSiblingOrder'; orderedSessionIds: string[] }
   | { type: 'archiveCascade' }
   | { type: 'deleteCascade' }
+  | { type: 'clearMessages' }
 
 /**
  * Session family information (parent + siblings)

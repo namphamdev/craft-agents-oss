@@ -80,6 +80,7 @@ import { setBundledAssetsRoot } from '@craft-agent/shared/utils'
 import { setVendorRoot } from '@craft-agent/shared/codex'
 import { setPowerShellValidatorRoot } from '@craft-agent/shared/agent'
 import { handleDeepLink } from './deep-link'
+import { startClaudeMemWorker, stopClaudeMemWorker } from './claude-mem-worker'
 import { registerThumbnailScheme, registerThumbnailHandler } from './thumbnail-protocol'
 import log, { isDebugMode, mainLog, getLogFilePath } from './logger'
 import { setPerfEnabled, enableDebug } from '@craft-agent/shared/utils'
@@ -361,6 +362,11 @@ app.whenReady().then(async () => {
     if (isDebugMode) {
       mainLog.info('Debug mode enabled - logs at:', getLogFilePath())
     }
+
+    // Start claude-mem worker in background (non-blocking)
+    startClaudeMemWorker().catch(err => {
+      mainLog.warn('[claude-mem] Failed to start worker:', err)
+    })
   } catch (error) {
     mainLog.error('Failed to initialize app:', error)
     // Continue anyway - the app will show errors in the UI
@@ -434,6 +440,11 @@ app.on('before-quit', async (event) => {
     // Clean up power manager (release power blocker)
     const { cleanup: cleanupPowerManager } = await import('./power-manager')
     cleanupPowerManager()
+
+    // Stop claude-mem worker
+    await stopClaudeMemWorker().catch(err => {
+      mainLog.warn('[claude-mem] Failed to stop worker:', err)
+    })
 
     // If update is in progress, let electron-updater handle the quit flow
     // Force exit breaks the NSIS installer on Windows

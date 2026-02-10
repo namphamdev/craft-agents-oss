@@ -363,22 +363,41 @@ const ChatPage = React.memo(function ChatPage({ sessionId }: ChatPageProps) {
   }, [sessionId])
 
   // Clear button - creates a new session (effectively clears the conversation)
-  const handleClear = React.useCallback(async () => {
+  const handleNewSession = React.useCallback(async () => {
     if (!activeWorkspaceId) return
     const newSession = await onCreateSession(activeWorkspaceId)
     navigate(routes.view.allSessions(newSession.id))
   }, [activeWorkspaceId, onCreateSession])
 
-  const clearButton = React.useMemo(() => (
+  const newSessionButton = React.useMemo(() => (
     <HeaderIconButton
       icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 5l0 14" />
         <path d="M5 12l14 0" />
       </svg>}
       tooltip="New Session"
-      onClick={handleClear}
+      onClick={handleNewSession}
     />
-  ), [handleClear])
+  ), [handleNewSession])
+
+  // Clear button - clears all messages in the current session
+  const handleClearMessages = React.useCallback(async () => {
+    await window.electronAPI.sessionCommand(sessionId, { type: 'clearMessages' })
+  }, [sessionId])
+
+  const clearButton = React.useMemo(() => (
+    <HeaderIconButton
+      icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 6h18" />
+        <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
+        <path d="M5 6l1 14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-14" />
+        <path d="M10 11v6" />
+        <path d="M14 11v6" />
+      </svg>}
+      tooltip="Clear Conversation"
+      onClick={handleClearMessages}
+    />
+  ), [handleClearMessages])
 
   // Share button with dropdown menu rendered in PanelHeader actions slot
   const shareButton = React.useMemo(() => (
@@ -512,7 +531,7 @@ const ChatPage = React.memo(function ChatPage({ sessionId }: ChatPageProps) {
       return (
         <>
           <div className="h-full flex flex-col">
-            <PanelHeader  title={displayTitle} titleMenu={titleMenu} actions={<>{clearButton}{shareButton}</>} rightSidebarButton={rightSidebarButton} isRegeneratingTitle={isAsyncOperationOngoing} />
+            <PanelHeader  title={displayTitle} titleMenu={titleMenu} actions={<>{clearButton}{newSessionButton}{shareButton}</>} rightSidebarButton={rightSidebarButton} isRegeneratingTitle={isAsyncOperationOngoing} />
             <div className="flex-1 flex flex-col min-h-0">
               <ChatDisplay
                 ref={chatDisplayRef}
@@ -581,7 +600,7 @@ const ChatPage = React.memo(function ChatPage({ sessionId }: ChatPageProps) {
   return (
     <>
       <div className="h-full flex flex-col">
-        <PanelHeader  title={displayTitle} titleMenu={titleMenu} actions={<>{clearButton}{shareButton}</>} rightSidebarButton={rightSidebarButton} isRegeneratingTitle={isAsyncOperationOngoing} />
+        <PanelHeader  title={displayTitle} titleMenu={titleMenu} actions={<>{clearButton}{newSessionButton}{shareButton}</>} rightSidebarButton={rightSidebarButton} isRegeneratingTitle={isAsyncOperationOngoing} />
         <div className="flex-1 flex flex-col min-h-0">
           <ChatDisplay
             ref={chatDisplayRef}

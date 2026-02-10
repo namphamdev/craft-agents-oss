@@ -279,6 +279,9 @@ export interface AgentBackend {
 
   /** Called when a source tool is used but source isn't active */
   onSourceActivationRequest: SourceActivationCallback | null;
+
+  /** Called when a tool produces a result (for observation capture, e.g., claude-mem) */
+  onToolResult: ((event: { toolName: string; toolUseId: string; result: string; isError: boolean; input?: Record<string, unknown> }) => void) | null;
 }
 
 /**

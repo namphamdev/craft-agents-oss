@@ -1444,6 +1444,20 @@ export class ClaudeAgent extends BaseAgent {
             if (event.type === 'complete') {
               receivedComplete = true;
             }
+            // Fire observation callback for tool results (e.g., claude-mem capture)
+            if (event.type === 'tool_result' && this.onToolResult) {
+              try {
+                this.onToolResult({
+                  toolName: event.toolName || 'unknown',
+                  toolUseId: event.toolUseId,
+                  result: event.result,
+                  isError: event.isError,
+                  input: event.input,
+                });
+              } catch {
+                // Never let observation capture failures affect the event stream
+              }
+            }
             yield event;
           }
         }

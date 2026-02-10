@@ -148,6 +148,7 @@ export abstract class BaseAgent implements AgentBackend {
   onDebug: ((message: string) => void) | null = null;
   onSourceActivationRequest: SourceActivationCallback | null = null;
   onUsageUpdate: ((update: UsageUpdate) => void) | null = null;
+  onToolResult: ((event: { toolName: string; toolUseId: string; result: string; isError: boolean; input?: Record<string, unknown> }) => void) | null = null;
 
   // ============================================================
   // Constructor

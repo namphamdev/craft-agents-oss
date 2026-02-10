@@ -1326,6 +1326,9 @@ export class SessionManager {
 
     // Load existing sessions from disk
     this.loadSessionsFromDisk()
+
+    // Auto-archive sessions inactive for >24h
+    await this.autoArchiveStaleSessions()
   }
 
   // Load all existing sessions from disk into memory (metadata only - messages are lazy-loaded)
@@ -1409,6 +1412,39 @@ export class SessionManager {
       sessionLog.info(`Loaded ${totalSessions} sessions from disk (metadata only)`)
     } catch (error) {
       sessionLog.error('Failed to load sessions from disk:', error)
+    }
+  }
+
+  /**
+   * Auto-archive sessions that have been inactive for more than 24 hours.
+   * Runs once at startup after loading sessions from disk.
+   * Uses lastMessageAt (falls back to lastUsedAt/createdAt) to determine staleness.
+   */
+  private async autoArchiveStaleSessions(): Promise<void> {
+    const STALE_THRESHOLD_MS = 24 * 60 * 60 * 1000 // 24 hours
+    const cutoff = Date.now() - STALE_THRESHOLD_MS
+    let archivedCount = 0
+
+    for (const [_, managed] of this.sessions) {
+      // Skip already archived or hidden sessions
+      if (managed.isArchived || managed.hidden) continue
+
+      // Skip sessions with no messages (empty/new sessions)
+      if (!managed.messageCount || managed.messageCount === 0) continue
+
+      const lastActivity = managed.lastMessageAt ?? managed.createdAt ?? Date.now()
+      if (lastActivity < cutoff) {
+        managed.isArchived = true
+        managed.archivedAt = Date.now()
+        this.persistSession(managed)
+        archivedCount++
+      }
+    }
+
+    if (archivedCount > 0) {
+      sessionLog.info(`Auto-archived ${archivedCount} stale sessions (inactive >24h)`)
+      // Flush all pending writes
+      await sessionPersistenceQueue.flushAll()
     }
   }
 
@@ -2610,6 +2646,30 @@ export class SessionManager {
         }, managed.workspace.id)
       }
 
+      // Wire up onToolResult for claude-mem observation capture.
+      // Sends tool results to the claude-mem Worker HTTP API (fire-and-forget).
+      managed.agent.onToolResult = (event) => {
+        // Skip errors to avoid noise
+        if (event.isError) return
+        // Skip claude-mem's own tools to avoid feedback loops
+        if (event.toolName.startsWith('mcp__claude-mem__')) return
+
+        const contentSessionId = managed.sdkSessionId || managed.id
+        fetch('http://localhost:37777/api/sessions/observations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contentSessionId,
+            tool_name: event.toolName,
+            tool_input: event.input ?? {},
+            tool_response: event.result.slice(0, 4000),
+            cwd: managed.workspace.rootPath,
+          }),
+        }).catch(() => {
+          // Worker not running, silently ignore
+        })
+      }
+
       // Wire up onPlanSubmitted to add plan message to conversation
       managed.agent.onPlanSubmitted = async (planPath) => {
         sessionLog.info(`Plan submitted for session ${managed.id}:`, planPath)
@@ -2865,6 +2925,29 @@ export class SessionManager {
       await this.flushSession(managed.id)
       // Notify all windows for this workspace
       this.sendEvent({ type: 'session_unflagged', sessionId }, managed.workspace.id)
+    }
+  }
+
+  async clearSessionMessages(sessionId: string): Promise<void> {
+    const managed = this.sessions.get(sessionId)
+    if (managed) {
+      // Clear in-memory messages and reset state
+      managed.messages = []
+      managed.sdkSessionId = undefined
+      managed.tokenUsage = {
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
+        contextTokens: 0,
+        costUsd: 0,
+      }
+      // Reset the agent's history if it exists
+      managed.agent?.clearHistory()
+      // Persist and flush
+      this.persistSession(managed)
+      await this.flushSession(managed.id)
+      // Notify renderer
+      this.sendEvent({ type: 'messages_cleared', sessionId }, managed.workspace.id)
     }
   }
 

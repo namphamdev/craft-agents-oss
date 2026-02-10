@@ -24,6 +24,7 @@ import {
   handleTodoStateChanged,
   handleSessionFlagged,
   handleSessionUnflagged,
+  handleMessagesCleared,
   handleSessionArchived,
   handleSessionUnarchived,
   handleNameChanged,
@@ -152,6 +153,9 @@ export function processEvent(
 
     case 'session_unflagged':
       return handleSessionUnflagged(state, event)
+
+    case 'messages_cleared':
+      return handleMessagesCleared(state, event)
 
     case 'session_archived':
       return handleSessionArchived(state, event)

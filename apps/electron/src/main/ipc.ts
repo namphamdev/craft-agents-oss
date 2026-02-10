@@ -598,6 +598,8 @@ export function registerIpcHandlers(sessionManager: SessionManager, windowManage
         return sessionManager.archiveSessionCascade(sessionId)
       case 'deleteCascade':
         return sessionManager.deleteSessionCascade(sessionId)
+      case 'clearMessages':
+        return sessionManager.clearSessionMessages(sessionId)
       default: {
         const _exhaustive: never = command
         throw new Error(`Unknown session command: ${JSON.stringify(command)}`)
