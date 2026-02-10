@@ -21,11 +21,11 @@ import type {
 // ============================================================
 
 /**
- * Loaded source with full context
+ * Loaded source with context for credential operations.
+ * Note: guide field omitted as credential manager doesn't use it.
  */
 export interface LoadedSource {
   config: SourceConfig;
-  guide: string | null;
   folderPath: string;
   workspaceRootPath: string;
   workspaceId: string;
