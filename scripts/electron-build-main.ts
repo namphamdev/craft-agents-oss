@@ -169,6 +169,18 @@ async function buildCopilotInterceptor(): Promise<void> {
 async function buildBridgeServer(): Promise<void> {
   console.log("🌉 Building Bridge MCP Server...");
 
+  const sourceEntry = join(BRIDGE_SERVER_DIR, "src/index.ts");
+
+  // If source doesn't exist but pre-built dist does, skip compilation
+  if (!existsSync(sourceEntry)) {
+    if (existsSync(BRIDGE_SERVER_OUTPUT)) {
+      console.log("✅ Bridge server using pre-built dist");
+      return;
+    }
+    console.error("❌ Bridge server source not found and no pre-built dist available");
+    process.exit(1);
+  }
+
   // Ensure dist directory exists
   const distDir = join(BRIDGE_SERVER_DIR, "dist");
   if (!existsSync(distDir)) {
@@ -178,7 +190,7 @@ async function buildBridgeServer(): Promise<void> {
   const proc = spawn({
     cmd: [
       "bun", "build",
-      join(BRIDGE_SERVER_DIR, "src/index.ts"),
+      sourceEntry,
       "--outfile", BRIDGE_SERVER_OUTPUT,
       "--target", "node",
       "--format", "cjs",
@@ -208,6 +220,18 @@ async function buildBridgeServer(): Promise<void> {
 async function buildSessionServer(): Promise<void> {
   console.log("📋 Building Session MCP Server...");
 
+  const sourceEntry = join(SESSION_SERVER_DIR, "src/index.ts");
+
+  // If source doesn't exist but pre-built dist does, skip compilation
+  if (!existsSync(sourceEntry)) {
+    if (existsSync(SESSION_SERVER_OUTPUT)) {
+      console.log("✅ Session server using pre-built dist");
+      return;
+    }
+    console.error("❌ Session server source not found and no pre-built dist available");
+    process.exit(1);
+  }
+
   // Ensure dist directory exists
   const distDir = join(SESSION_SERVER_DIR, "dist");
   if (!existsSync(distDir)) {
@@ -217,7 +241,7 @@ async function buildSessionServer(): Promise<void> {
   const proc = spawn({
     cmd: [
       "bun", "build",
-      join(SESSION_SERVER_DIR, "src/index.ts"),
+      sourceEntry,
       "--outfile", SESSION_SERVER_OUTPUT,
       "--target", "node",
       "--format", "cjs",
