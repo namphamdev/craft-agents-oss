@@ -137,7 +137,35 @@ async function buildMcpServers(): Promise<void> {
   if (!existsSync(sessionDistDir)) mkdirSync(sessionDistDir, { recursive: true });
   if (!existsSync(bridgeDistDir)) mkdirSync(bridgeDistDir, { recursive: true });
 
-  // Build both servers in parallel
+  const sessionSrc = join(ROOT_DIR, "packages/session-mcp-server/src/index.ts");
+  const bridgeSrc = join(ROOT_DIR, "packages/bridge-mcp-server/src/index.ts");
+
+  // If source files don't exist, use pre-built binaries from resources
+  if (!existsSync(sessionSrc) || !existsSync(bridgeSrc)) {
+    console.log("📦 MCP server sources not found, using pre-built binaries from resources...");
+
+    const resourcesDir = join(ELECTRON_DIR, "resources");
+    const sessionResource = join(resourcesDir, "session-mcp-server/index.js");
+    const bridgeResource = join(resourcesDir, "bridge-mcp-server/index.js");
+
+    if (!existsSync(sessionSrc) && existsSync(sessionResource)) {
+      cpSync(sessionResource, SESSION_SERVER_OUTPUT);
+      console.log("✅ Session MCP server (pre-built)");
+    } else if (!existsSync(sessionSrc)) {
+      console.warn("⚠️  Session MCP server: no source or pre-built binary found");
+    }
+
+    if (!existsSync(bridgeSrc) && existsSync(bridgeResource)) {
+      cpSync(bridgeResource, BRIDGE_SERVER_OUTPUT);
+      console.log("✅ Bridge MCP server (pre-built)");
+    } else if (!existsSync(bridgeSrc)) {
+      console.warn("⚠️  Bridge MCP server: no source or pre-built binary found");
+    }
+
+    return;
+  }
+
+  // Build both servers in parallel from source
   const [sessionResult, bridgeResult] = await Promise.all([
     runEsbuild(
       "packages/session-mcp-server/src/index.ts",

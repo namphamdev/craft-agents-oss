@@ -1134,12 +1134,12 @@ export function FreeFormInput({
     // - 'cmd-enter': ⌘/Ctrl+Enter sends (Enter for newline)
     if (sendMessageKey === 'enter') {
       // Enter sends, Shift+Enter adds newline
-      if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+      if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.nativeEvent.isComposing) {
         e.preventDefault()
         submitMessage()
       }
       // Also allow Cmd/Ctrl+Enter to send (power user shortcut)
-      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !e.nativeEvent.isComposing) {
+      else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !e.nativeEvent.isComposing) {
         e.preventDefault()
         submitMessage()
       }

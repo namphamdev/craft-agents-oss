@@ -4,7 +4,7 @@
  */
 
 import { spawn } from "bun";
-import { existsSync, readFileSync, statSync, mkdirSync } from "fs";
+import { existsSync, readFileSync, statSync, mkdirSync, cpSync } from "fs";
 import { join } from "path";
 
 const ROOT_DIR = join(import.meta.dir, "..");
@@ -130,6 +130,8 @@ function verifySessionToolsCore(): void {
   console.log("✅ Session tools core verified");
 }
 
+const ELECTRON_DIR = join(ROOT_DIR, "apps/electron");
+
 // Build the Bridge MCP Server (used for API sources in Codex sessions)
 async function buildBridgeServer(): Promise<void> {
   console.log("🌉 Building Bridge MCP Server...");
@@ -140,10 +142,23 @@ async function buildBridgeServer(): Promise<void> {
     mkdirSync(distDir, { recursive: true });
   }
 
+  const srcFile = join(BRIDGE_SERVER_DIR, "src/index.ts");
+  if (!existsSync(srcFile)) {
+    // Use pre-built binary from resources
+    const resourceFile = join(ELECTRON_DIR, "resources/bridge-mcp-server/index.js");
+    if (existsSync(resourceFile)) {
+      cpSync(resourceFile, BRIDGE_SERVER_OUTPUT);
+      console.log("✅ Bridge server (pre-built from resources)");
+      return;
+    }
+    console.error("❌ Bridge server: no source or pre-built binary found");
+    process.exit(1);
+  }
+
   const proc = spawn({
     cmd: [
       "bun", "build",
-      join(BRIDGE_SERVER_DIR, "src/index.ts"),
+      srcFile,
       "--outfile", BRIDGE_SERVER_OUTPUT,
       "--target", "node",
       "--format", "cjs",
@@ -179,10 +194,23 @@ async function buildSessionServer(): Promise<void> {
     mkdirSync(distDir, { recursive: true });
   }
 
+  const srcFile = join(SESSION_SERVER_DIR, "src/index.ts");
+  if (!existsSync(srcFile)) {
+    // Use pre-built binary from resources
+    const resourceFile = join(ELECTRON_DIR, "resources/session-mcp-server/index.js");
+    if (existsSync(resourceFile)) {
+      cpSync(resourceFile, SESSION_SERVER_OUTPUT);
+      console.log("✅ Session server (pre-built from resources)");
+      return;
+    }
+    console.error("❌ Session server: no source or pre-built binary found");
+    process.exit(1);
+  }
+
   const proc = spawn({
     cmd: [
       "bun", "build",
-      join(SESSION_SERVER_DIR, "src/index.ts"),
+      srcFile,
       "--outfile", SESSION_SERVER_OUTPUT,
       "--target", "node",
       "--format", "cjs",
