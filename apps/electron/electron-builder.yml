@@ -5,7 +5,7 @@ copyright: Copyright © 2025 Craft Docs Ltd.
 electronVersion: "39.2.7"
 
 # Hook to compile macOS 26+ Liquid Glass icon after packaging
-afterPack: scripts/afterPack.cjs
+afterPack: apps/electron/scripts/afterPack.cjs
 
 directories:
   output: release
