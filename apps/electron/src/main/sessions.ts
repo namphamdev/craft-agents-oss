@@ -1767,6 +1767,15 @@ export class SessionManager {
       resolvedWorkingDir = undefined  // No working directory
     } else if (options?.workingDirectory === 'user_default' || options?.workingDirectory === undefined) {
       resolvedWorkingDir = userDefaultWorkingDir
+      // Fallback: inherit working directory from most recent session in the same workspace
+      if (!resolvedWorkingDir) {
+        const mostRecent = Array.from(this.sessions.values())
+          .filter(s => s.workingDirectory && s.workspace.id === workspace.id)
+          .sort((a, b) => (b.lastMessageAt ?? 0) - (a.lastMessageAt ?? 0))[0]
+        if (mostRecent) {
+          resolvedWorkingDir = mostRecent.workingDirectory
+        }
+      }
     } else {
       resolvedWorkingDir = options.workingDirectory
     }
