@@ -90,7 +90,7 @@ const API_SETUP_OPTIONS: ApiSetupOption[] = [
   {
     id: 'openai_api_key',
     name: 'Codex · OpenAI API Key',
-    description: 'Pay-as-you-go via OpenAI Platform, OpenRouter, or Vercel AI Gateway.',
+    description: 'Pay-as-you-go via the OpenAI Platform API.',
     icon: <Key className="size-4" />,
     providerType: 'openai',
   },
