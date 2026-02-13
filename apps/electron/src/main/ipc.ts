@@ -122,6 +122,28 @@ function createBuiltInConnection(slug: string, baseUrl?: string | null): LlmConn
   }
 }
 
+function getUniqueConnectionSlug(baseSlug: string): string {
+  const existingSlugs = new Set(getLlmConnections().map((conn) => conn.slug))
+  if (!existingSlugs.has(baseSlug)) return baseSlug
+
+  let next = 2
+  while (existingSlugs.has(`${baseSlug}-${next}`)) {
+    next += 1
+  }
+  return `${baseSlug}-${next}`
+}
+
+function getUniqueConnectionName(baseName: string): string {
+  const existingNames = new Set(getLlmConnections().map((conn) => conn.name.trim().toLowerCase()))
+  if (!existingNames.has(baseName.trim().toLowerCase())) return baseName
+
+  let next = 2
+  while (existingNames.has(`${baseName} ${next}`.trim().toLowerCase())) {
+    next += 1
+  }
+  return `${baseName} ${next}`
+}
+
 /**
  * Fetch available models from the Copilot SDK and update the connection.
  * Spins up a temporary CopilotClient, calls listModels(), then stops it.
@@ -1424,13 +1446,21 @@ export function registerIpcHandlers(sessionManager: SessionManager, windowManage
   ipcMain.handle(IPC_CHANNELS.SETUP_LLM_CONNECTION, async (_event, setup: LlmConnectionSetup): Promise<{ success: boolean; error?: string }> => {
     try {
       const manager = getCredentialManager()
+      const requestedSlug = setup.slug
+      const resolvedSlug = setup.createNew ? getUniqueConnectionSlug(requestedSlug) : requestedSlug
 
       // Ensure connection exists in config
-      let connection = getLlmConnection(setup.slug)
+      let connection = getLlmConnection(resolvedSlug)
       let isNewConnection = false
+      const templateSlug = setup.templateSlug ?? requestedSlug
       if (!connection) {
-        // Create connection with appropriate defaults based on slug
-        connection = createBuiltInConnection(setup.slug, setup.baseUrl)
+        // Create connection with appropriate defaults based on template slug
+        connection = createBuiltInConnection(templateSlug, setup.baseUrl)
+        // Override slug to match requested connection
+        connection.slug = resolvedSlug
+        if (setup.createNew) {
+          connection.name = getUniqueConnectionName(connection.name)
+        }
         isNewConnection = true
       }
 
@@ -1491,41 +1521,41 @@ export function registerIpcHandlers(sessionManager: SessionManager, windowManage
 
       if (isNewConnection) {
         addLlmConnection(pendingConnection)
-        ipcLog.info(`Created LLM connection: ${setup.slug}`)
+        ipcLog.info(`Created LLM connection: ${resolvedSlug}`)
       } else if (Object.keys(updates).length > 0) {
-        updateLlmConnection(setup.slug, updates)
-        ipcLog.info(`Updated LLM connection settings: ${setup.slug}`)
+        updateLlmConnection(resolvedSlug, updates)
+        ipcLog.info(`Updated LLM connection settings: ${resolvedSlug}`)
       }
 
       // Store credential if provided
       if (setup.credential) {
         const authType = pendingConnection.authType
         if (authType === 'oauth') {
-          await manager.setLlmOAuth(setup.slug, { accessToken: setup.credential })
+          await manager.setLlmOAuth(resolvedSlug, { accessToken: setup.credential })
           ipcLog.info('Saved OAuth access token to LLM connection')
         } else {
-          await manager.setLlmApiKey(setup.slug, setup.credential)
+          await manager.setLlmApiKey(resolvedSlug, setup.credential)
           ipcLog.info('Saved API key to LLM connection')
         }
       }
 
       // Set as default only if no default exists yet (first connection)
       if (!getDefaultLlmConnection()) {
-        setDefaultLlmConnection(setup.slug)
-        ipcLog.info(`Set default LLM connection: ${setup.slug}`)
+        setDefaultLlmConnection(resolvedSlug)
+        ipcLog.info(`Set default LLM connection: ${resolvedSlug}`)
       }
 
       // For Copilot connections, fetch available models from the API
       if (isCopilotProvider(pendingConnection.providerType)) {
-        const oauth = await manager.getLlmOAuth(setup.slug)
+        const oauth = await manager.getLlmOAuth(resolvedSlug)
         if (oauth?.accessToken) {
-          await fetchAndStoreCopilotModels(setup.slug, oauth.accessToken)
+          await fetchAndStoreCopilotModels(resolvedSlug, oauth.accessToken)
         }
       }
 
       // Reinitialize auth with the newly-created connection's slug
       // (not the default, which may be a different connection)
-      const authSlug = getDefaultLlmConnection() || setup.slug
+      const authSlug = getDefaultLlmConnection() || resolvedSlug
       await sessionManager.reinitializeAuth(authSlug)
       ipcLog.info('Reinitialized auth after LLM connection setup')
 

@@ -19,6 +19,7 @@ import type {
 } from '@/components/onboarding'
 import type { ApiKeySubmitData } from '@/components/apisetup'
 import type { SetupNeeds, GitBashStatus, LlmConnectionSetup } from '../../shared/types'
+import { generateSlug } from '@craft-agent/shared/config/llm-connections'
 
 interface UseOnboardingOptions {
   /** Called when onboarding is complete */
@@ -34,6 +35,8 @@ interface UseOnboardingOptions {
   /** Called immediately after config is saved to disk (before wizard closes).
    *  Use this to propagate billing/model changes to the UI without waiting for onComplete. */
   onConfigSaved?: () => void
+  /** When true, saves without a target slug create a new distinct connection. */
+  enableCreateNewConnections?: boolean
 }
 
 interface UseOnboardingReturn {
@@ -71,43 +74,100 @@ interface UseOnboardingReturn {
 
   // Reset
   reset: () => void
+
+  // Connection target
+  setTargetConnectionSlug: (slug: string | null) => void
+}
+
+interface ApiSetupOptions {
+  credential?: string
+  baseUrl?: string
+  connectionDefaultModel?: string
+  models?: string[]
+  targetSlug?: string | null
+  createNew?: boolean
+}
+
+type ApiSetupCredentialOptions = Omit<ApiSetupOptions, 'targetSlug'>
+
+function randomSlugSegment(): string {
+  if (typeof globalThis.crypto?.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID().split('-')[0]
+  }
+  return Math.random().toString(36).slice(2, 8)
+}
+
+function getBaseUrlSlug(baseUrl?: string): string | undefined {
+  if (!baseUrl) return undefined
+  const trimmed = baseUrl.trim()
+  if (!trimmed) return undefined
+  try {
+    const parsed = new URL(trimmed)
+    const slugified = generateSlug(parsed.host)
+    return slugified || undefined
+  } catch {
+    const slugified = generateSlug(trimmed)
+    return slugified || undefined
+  }
+}
+
+function buildCompatConnectionSlug(templateSlug: 'anthropic-api' | 'codex-api', baseUrl?: string): string {
+  const prefix = templateSlug === 'anthropic-api' ? 'custom-anthropic' : 'custom-codex'
+  const hostSegment = getBaseUrlSlug(baseUrl)
+  const base = hostSegment ? `${prefix}-${hostSegment}` : prefix
+  return `${base}-${randomSlugSegment()}`
 }
 
 // Map ApiSetupMethod to LlmConnectionSetup for the new unified connection system
 function apiSetupMethodToConnectionSetup(
   method: ApiSetupMethod,
-  options: { credential?: string; baseUrl?: string; connectionDefaultModel?: string; models?: string[] }
+  options: ApiSetupOptions = {}
 ): LlmConnectionSetup {
   switch (method) {
-    case 'anthropic_api_key':
+    case 'anthropic_api_key': {
+      const templateSlug = 'anthropic-api'
+      const slug = options.targetSlug ??
+        (options.baseUrl ? buildCompatConnectionSlug(templateSlug, options.baseUrl) : templateSlug)
       return {
-        slug: 'anthropic-api',
+        slug,
+        templateSlug,
+        createNew: options.createNew,
         credential: options.credential,
         baseUrl: options.baseUrl,
         defaultModel: options.connectionDefaultModel,
         models: options.models,
       }
+    }
     case 'claude_oauth':
       return {
         slug: 'claude-max',
+        createNew: options.createNew,
         credential: options.credential,
       }
     case 'chatgpt_oauth':
       return {
         slug: 'codex',
+        createNew: options.createNew,
         credential: options.credential,
       }
-    case 'openai_api_key':
+    case 'openai_api_key': {
+      const templateSlug = 'codex-api'
+      const slug = options.targetSlug ??
+        (options.baseUrl ? buildCompatConnectionSlug(templateSlug, options.baseUrl) : templateSlug)
       return {
-        slug: 'codex-api',
+        slug,
+        templateSlug,
+        createNew: options.createNew,
         credential: options.credential,
         baseUrl: options.baseUrl,
         defaultModel: options.connectionDefaultModel,
         models: options.models,
       }
+    }
     case 'copilot_oauth':
       return {
         slug: 'copilot',
+        createNew: options.createNew,
         credential: options.credential,
       }
   }
@@ -120,6 +180,7 @@ export function useOnboarding({
   initialApiSetupMethod,
   onDismiss,
   onConfigSaved,
+  enableCreateNewConnections = false,
 }: UseOnboardingOptions): UseOnboardingReturn {
   // Main wizard state
   const [state, setState] = useState<OnboardingState>({
@@ -133,6 +194,7 @@ export function useOnboarding({
     isRecheckingGitBash: false,
     isCheckingGitBash: true, // Start as true until check completes
   })
+  const [targetConnectionSlug, setTargetConnectionSlug] = useState<string | null>(null)
 
   // Check Git Bash on Windows when starting from welcome
   useEffect(() => {
@@ -150,7 +212,7 @@ export function useOnboarding({
   }, [])
 
   // Save configuration using the new unified LLM connection API
-  const handleSaveConfig = useCallback(async (credential?: string, options?: { baseUrl?: string; connectionDefaultModel?: string; models?: string[] }) => {
+  const handleSaveConfig = useCallback(async (credential?: string, options?: ApiSetupCredentialOptions) => {
     if (!state.apiSetupMethod) {
       return
     }
@@ -160,10 +222,10 @@ export function useOnboarding({
     try {
       // Build connection setup from UI state
       const setup = apiSetupMethodToConnectionSetup(state.apiSetupMethod, {
+        ...(options ?? {}),
         credential,
-        baseUrl: options?.baseUrl,
-        connectionDefaultModel: options?.connectionDefaultModel,
-        models: options?.models,
+        targetSlug: targetConnectionSlug ?? undefined,
+        createNew: enableCreateNewConnections && !targetConnectionSlug,
       })
       // Use new unified API
       const result = await window.electronAPI.setupLlmConnection(setup)
@@ -187,7 +249,7 @@ export function useOnboarding({
         errorMessage: error instanceof Error ? error.message : 'Failed to save configuration',
       }))
     }
-  }, [state.apiSetupMethod, onConfigSaved])
+  }, [state.apiSetupMethod, onConfigSaved, targetConnectionSlug, enableCreateNewConnections])
 
   // Continue to next step
   const handleContinue = useCallback(async () => {
@@ -362,7 +424,10 @@ export function useOnboarding({
     try {
       // ChatGPT OAuth (single-step flow - opens browser, captures tokens automatically)
       if (effectiveMethod === 'chatgpt_oauth') {
-        const connectionSlug = apiSetupMethodToConnectionSetup(effectiveMethod, {}).slug
+        const connectionSlug = apiSetupMethodToConnectionSetup(effectiveMethod, {
+          targetSlug: targetConnectionSlug ?? undefined,
+          createNew: enableCreateNewConnections && !targetConnectionSlug,
+        }).slug
         const result = await window.electronAPI.startChatGptOAuth(connectionSlug)
 
         if (result.success) {
@@ -385,7 +450,10 @@ export function useOnboarding({
 
       // Copilot OAuth (device flow — polls for token after user enters code on GitHub)
       if (effectiveMethod === 'copilot_oauth') {
-        const connectionSlug = apiSetupMethodToConnectionSetup(effectiveMethod, {}).slug
+        const connectionSlug = apiSetupMethodToConnectionSetup(effectiveMethod, {
+          targetSlug: targetConnectionSlug ?? undefined,
+          createNew: enableCreateNewConnections && !targetConnectionSlug,
+        }).slug
 
         // Subscribe to device code event before starting the flow
         const cleanup = window.electronAPI.onCopilotDeviceCode((data) => {
@@ -447,7 +515,7 @@ export function useOnboarding({
         errorMessage: error instanceof Error ? error.message : 'OAuth failed',
       }))
     }
-  }, [state.apiSetupMethod, handleSaveConfig])
+  }, [state.apiSetupMethod, handleSaveConfig, targetConnectionSlug, enableCreateNewConnections])
 
   // Submit authorization code (second step of OAuth flow)
   const handleSubmitAuthCode = useCallback(async (code: string) => {
@@ -464,7 +532,10 @@ export function useOnboarding({
 
     try {
       // claude_oauth is the only method that uses the code exchange flow
-      const connectionSlug = apiSetupMethodToConnectionSetup('claude_oauth', {}).slug
+      const connectionSlug = apiSetupMethodToConnectionSetup('claude_oauth', {
+        targetSlug: targetConnectionSlug ?? undefined,
+        createNew: enableCreateNewConnections && !targetConnectionSlug,
+      }).slug
       const result = await window.electronAPI.exchangeClaudeCode(code.trim(), connectionSlug)
 
       if (result.success && result.token) {
@@ -490,7 +561,7 @@ export function useOnboarding({
         errorMessage: error instanceof Error ? error.message : 'Failed to exchange code',
       }))
     }
-  }, [handleSaveConfig])
+  }, [handleSaveConfig, targetConnectionSlug, enableCreateNewConnections])
 
   // Cancel OAuth flow
   const handleCancelOAuth = useCallback(async () => {
@@ -564,6 +635,7 @@ export function useOnboarding({
       isExistingUser: false,
       errorMessage: undefined,
     })
+    setTargetConnectionSlug(null)
     setIsWaitingForCode(false)
     // Clean up any pending OAuth state
     window.electronAPI.clearClaudeOAuthState().catch(() => {
@@ -592,5 +664,6 @@ export function useOnboarding({
     handleFinish,
     handleCancel,
     reset,
+    setTargetConnectionSlug,
   }
 }

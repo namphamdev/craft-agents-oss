@@ -71,6 +71,8 @@ export interface LlmConnectionSetup {
   baseUrl?: string | null   // Custom API endpoint (null to clear)
   defaultModel?: string | null  // Custom model override (null to clear)
   models?: string[] | null  // Optional model list for compat providers
+  templateSlug?: string     // Optional built-in template slug when creating new connection
+  createNew?: boolean       // If true and slug exists, create a new unique connection instead of updating
 }
 
 

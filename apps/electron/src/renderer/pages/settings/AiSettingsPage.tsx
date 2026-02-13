@@ -471,7 +471,6 @@ export default function AiSettingsPage() {
 
   // API Setup overlay state
   const [showApiSetup, setShowApiSetup] = useState(false)
-  const [editingConnectionSlug, setEditingConnectionSlug] = useState<string | null>(null)
   const setFullscreenOverlayOpen = useSetAtom(fullscreenOverlayOpenAtom)
 
   // Workspaces for override cards
@@ -515,21 +514,15 @@ export default function AiSettingsPage() {
   }, [])
 
   // Helpers to open/close the fullscreen API setup overlay
-  const openApiSetup = useCallback((connectionSlug?: string) => {
-    setEditingConnectionSlug(connectionSlug || null)
-    setShowApiSetup(true)
-    setFullscreenOverlayOpen(true)
-  }, [setFullscreenOverlayOpen])
-
   const closeApiSetup = useCallback(() => {
     setShowApiSetup(false)
     setFullscreenOverlayOpen(false)
-    setEditingConnectionSlug(null)
   }, [setFullscreenOverlayOpen])
 
   // OnboardingWizard hook for editing API connection
   const apiSetupOnboarding = useOnboarding({
     initialStep: 'api-setup',
+    enableCreateNewConnections: true,
     onConfigSaved: refreshLlmConnections,
     onComplete: () => {
       closeApiSetup()
@@ -541,6 +534,12 @@ export default function AiSettingsPage() {
       apiSetupOnboarding.reset()
     },
   })
+
+  const openApiSetup = useCallback((connectionSlug?: string) => {
+    apiSetupOnboarding.setTargetConnectionSlug(connectionSlug ?? null)
+    setShowApiSetup(true)
+    setFullscreenOverlayOpen(true)
+  }, [apiSetupOnboarding, setFullscreenOverlayOpen])
 
   const handleApiSetupFinish = useCallback(() => {
     closeApiSetup()
@@ -604,8 +603,8 @@ export default function AiSettingsPage() {
   }, [renamingConnection, renameValue, refreshLlmConnections])
 
   const handleReauthenticateConnection = useCallback((connection: LlmConnectionWithStatus) => {
-    openApiSetup(connection.slug)
     apiSetupOnboarding.reset()
+    openApiSetup(connection.slug)
 
     if (connection.authType === 'oauth') {
       const method = connection.providerType === 'openai' ? 'chatgpt_oauth'
