@@ -109,6 +109,9 @@ export function handleTextComplete(
       isIntermediate: event.isIntermediate,
       turnId: event.turnId,
       parentToolUseId: event.parentToolUseId,
+      // Overwrite text_delta's Date.now() with main process monotonic timestamp
+      // This ensures reload order matches live order
+      ...(event.timestamp ? { timestamp: event.timestamp } : {}),
     }, shouldUpdateTimestamp)
     return { session: updatedSession, streaming: null }
   }
@@ -120,7 +123,7 @@ export function handleTextComplete(
     id: generateMessageId(),
     role: 'assistant',
     content: event.text,
-    timestamp: Date.now(),
+    timestamp: event.timestamp ?? Date.now(),
     isStreaming: false,
     isPending: false,
     isIntermediate: event.isIntermediate,

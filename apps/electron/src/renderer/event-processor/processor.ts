@@ -21,7 +21,7 @@ import {
   handleTypedError,
   handleSourcesChanged,
   handleLabelsChanged,
-  handleTodoStateChanged,
+  handleSessionStatusChanged,
   handleSessionFlagged,
   handleSessionUnflagged,
   handleMessagesCleared,
@@ -47,7 +47,6 @@ import {
   handleAuthRequest,
   handleAuthCompleted,
   handleUsageUpdate,
-  handleTodosUpdated,
 } from './handlers/session'
 
 /**
@@ -145,8 +144,8 @@ export function processEvent(
     case 'labels_changed':
       return handleLabelsChanged(state, event)
 
-    case 'todo_state_changed':
-      return handleTodoStateChanged(state, event)
+    case 'session_status_changed':
+      return handleSessionStatusChanged(state, event)
 
     case 'session_flagged':
       return handleSessionFlagged(state, event)
@@ -204,11 +203,6 @@ export function processEvent(
 
     case 'usage_update':
       return handleUsageUpdate(state, event)
-
-    case 'todos_updated':
-      // Codex's turn/plan/updated notification - synthesize a TodoWrite tool message
-      // This allows reusing existing turn-utils extraction logic for TurnCard todos
-      return handleTodosUpdated(state, event)
 
     default: {
       // Unknown event type - return state unchanged but as new reference

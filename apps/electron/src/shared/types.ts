@@ -307,7 +307,7 @@ import type { Message } from '@craft-agent/core/types';
  * - 'done': Completed successfully
  * - 'cancelled': Cancelled/abandoned
  */
-export type TodoState = string
+export type SessionStatus = string
 
 // Helper type for TypeScript consumers
 export type BuiltInStatusId = 'todo' | 'in-progress' | 'needs-review' | 'done' | 'cancelled'
@@ -327,8 +327,8 @@ export interface Session {
   // Advanced options (persisted per session)
   /** Permission mode for this session ('safe', 'ask', 'allow-all') */
   permissionMode?: PermissionMode
-  // Todo state (user-controlled) - determines open vs closed
-  todoState?: TodoState
+  // Session status (user-controlled) - determines open vs closed
+  sessionStatus?: SessionStatus
   // Labels (additive tags, many-per-session — bare IDs or "id::value" entries)
   labels?: string[]
   // Read/unread tracking - ID of last message user has read
@@ -422,8 +422,8 @@ export interface CreateSessionOptions {
   systemPromptPreset?: 'default' | 'mini' | string
   /** When true, session won't appear in session list (e.g., mini edit sessions) */
   hidden?: boolean
-  /** Initial todo state (status) for the session */
-  todoState?: TodoState
+  /** Initial session status for the session */
+  sessionStatus?: SessionStatus
   /** Initial labels for the session */
   labels?: string[]
   /** Whether the session should be flagged */
@@ -436,15 +436,15 @@ export interface CreateSessionOptions {
 // turnId: Correlation ID from the API's message.id, groups all events in an assistant turn
 export type SessionEvent =
   | { type: 'text_delta'; sessionId: string; delta: string; turnId?: string }
-  | { type: 'text_complete'; sessionId: string; text: string; isIntermediate?: boolean; turnId?: string; parentToolUseId?: string }
+  | { type: 'text_complete'; sessionId: string; text: string; isIntermediate?: boolean; turnId?: string; parentToolUseId?: string; timestamp?: number }
   | { type: 'tool_start'; sessionId: string; toolName: string; toolUseId: string; toolInput: Record<string, unknown>; toolIntent?: string; toolDisplayName?: string; toolDisplayMeta?: import('@craft-agent/core').ToolDisplayMeta; turnId?: string; parentToolUseId?: string; timestamp?: number }
-  | { type: 'tool_result'; sessionId: string; toolUseId: string; toolName: string; result: string; turnId?: string; parentToolUseId?: string; isError?: boolean }
-  | { type: 'error'; sessionId: string; error: string }
-  | { type: 'typed_error'; sessionId: string; error: TypedError }
+  | { type: 'tool_result'; sessionId: string; toolUseId: string; toolName: string; result: string; turnId?: string; parentToolUseId?: string; isError?: boolean; timestamp?: number }
+  | { type: 'error'; sessionId: string; error: string; timestamp?: number }
+  | { type: 'typed_error'; sessionId: string; error: TypedError; timestamp?: number }
   | { type: 'complete'; sessionId: string; tokenUsage?: Session['tokenUsage']; hasUnread?: boolean }
   | { type: 'interrupted'; sessionId: string; message?: Message }
   | { type: 'status'; sessionId: string; message: string; statusType?: 'compacting' }
-  | { type: 'info'; sessionId: string; message: string; statusType?: 'compaction_complete'; level?: 'info' | 'warning' | 'error' | 'success' }
+  | { type: 'info'; sessionId: string; message: string; statusType?: 'compaction_complete'; level?: 'info' | 'warning' | 'error' | 'success'; timestamp?: number }
   | { type: 'title_generated'; sessionId: string; title: string }
   | { type: 'title_regenerating'; sessionId: string; isRegenerating: boolean }
   // Generic async operation state (sharing, updating share, revoking, title regeneration)
@@ -474,7 +474,7 @@ export type SessionEvent =
   | { type: 'session_unarchived'; sessionId: string }
   | { type: 'name_changed'; sessionId: string; name?: string }
   | { type: 'session_model_changed'; sessionId: string; model: string | null }
-  | { type: 'todo_state_changed'; sessionId: string; todoState: TodoState }
+  | { type: 'session_status_changed'; sessionId: string; sessionStatus: SessionStatus }
   | { type: 'session_deleted'; sessionId: string }
   | { type: 'messages_cleared'; sessionId: string }
   // Sub-session events
@@ -491,18 +491,6 @@ export type SessionEvent =
   | { type: 'source_activated'; sessionId: string; sourceSlug: string; originalMessage: string }
   // Real-time usage update during processing (for context display)
   | { type: 'usage_update'; sessionId: string; tokenUsage: { inputTokens: number; contextWindow?: number } }
-  // Codex turn plan updates (native task list)
-  | {
-      type: 'todos_updated'
-      sessionId: string
-      todos: Array<{
-        content: string
-        status: 'pending' | 'in_progress' | 'completed'
-        activeForm?: string
-      }>
-      turnId?: string
-      explanation?: string | null
-    }
 
 // Options for sendMessage
 export interface SendMessageOptions {
@@ -522,7 +510,7 @@ export interface SendMessageOptions {
 
 /**
  * SessionCommand - Consolidated session operations
- * Replaces individual IPC calls: flag, unflag, rename, setTodoState, etc.
+ * Replaces individual IPC calls: flag, unflag, rename, setSessionStatus, etc.
  */
 export type SessionCommand =
   | { type: 'flag' }
@@ -530,7 +518,7 @@ export type SessionCommand =
   | { type: 'archive' }
   | { type: 'unarchive' }
   | { type: 'rename'; name: string }
-  | { type: 'setTodoState'; state: TodoState }
+  | { type: 'setSessionStatus'; state: SessionStatus }
   | { type: 'markRead' }
   | { type: 'markUnread' }
   /** Track which session user is actively viewing (for unread state machine) */
@@ -704,6 +692,8 @@ export const IPC_CHANNELS = {
   LLM_CONNECTION_TEST: 'LLM_Connection:test',
   LLM_CONNECTION_SET_DEFAULT: 'LLM_Connection:setDefault',
   LLM_CONNECTION_SET_WORKSPACE_DEFAULT: 'LLM_Connection:setWorkspaceDefault',
+  LLM_CONNECTION_REFRESH_MODELS: 'LLM_Connection:refreshModels',
+  LLM_CONNECTIONS_CHANGED: 'LLM_Connection:changed',  // Broadcast event
 
   // ChatGPT OAuth (for Codex chatgptAuthTokens mode)
   CHATGPT_START_OAUTH: 'chatgpt:startOAuth',
@@ -1090,6 +1080,9 @@ export interface ElectronAPI {
   deleteLabel(workspaceId: string, labelId: string): Promise<{ stripped: number }>
   // Labels change listener (live updates when labels config changes)
   onLabelsChanged(callback: (workspaceId: string) => void): () => void
+
+  // LLM connections change listener (live updates when models are fetched or connections are modified)
+  onLlmConnectionsChanged(callback: () => void): () => void
 
   // Views (workspace-scoped, stored in views.json)
   listViews(workspaceId: string): Promise<import('@craft-agent/shared/views').ViewConfig[]>

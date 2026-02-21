@@ -22,6 +22,7 @@ import type { ThinkingLevel } from './thinking-levels.ts';
 import { DEFAULT_THINKING_LEVEL } from './thinking-levels.ts';
 import type { PermissionMode } from './mode-manager.ts';
 import type { LoadedSource } from '../sources/types.ts';
+import type { LLMQueryRequest, LLMQueryResult } from './llm-tool.ts';
 
 import type {
   AgentBackend,
@@ -58,7 +59,7 @@ import {
 
 // Skill extraction for Codex/Copilot backends (Claude uses native SDK Skill tool)
 import { parseMentions, stripAllMentions } from '../mentions/index.ts';
-import { loadWorkspaceSkills } from '../skills/storage.ts';
+import { loadAllSkills } from '../skills/storage.ts';
 
 // ============================================================
 // Mini Agent Configuration
@@ -705,7 +706,8 @@ Please continue the conversation naturally from where we left off.
     cleanMessage: string;
   } {
     const workspaceRoot = this.config.workspace?.rootPath ?? this.workingDirectory;
-    const skills = loadWorkspaceSkills(workspaceRoot);
+    const projectRoot = this.config.session?.workingDirectory;
+    const skills = loadAllSkills(workspaceRoot, projectRoot);
     const skillSlugs = skills.map(s => s.slug);
 
     this.debug(`[extractSkillContent] Available skills: ${skillSlugs.join(', ')}`);
@@ -785,6 +787,20 @@ Please continue the conversation naturally from where we left off.
    * @returns The model's response text, or null if completion fails
    */
   abstract runMiniCompletion(prompt: string): Promise<string | null>;
+
+  /**
+   * Execute an LLM query using the agent's auth infrastructure.
+   * Used by call_llm tool (via queryFn callback) and potentially by runMiniCompletion.
+   *
+   * Each backend implements this using its own SDK/session mechanism:
+   * - ClaudeAgent: SDK query() with OAuth
+   * - CodexAgent: Ephemeral thread on app-server
+   * - CopilotAgent: Ephemeral CopilotSession
+   *
+   * @param request - The query request (prompt, model, systemPrompt, etc.)
+   * @returns The model's response text and optional token usage
+   */
+  abstract queryLlm(request: LLMQueryRequest): Promise<LLMQueryResult>;
 
   // ============================================================
   // Title Generation (shared implementation using runMiniCompletion)

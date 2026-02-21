@@ -519,10 +519,15 @@ export default function AiSettingsPage() {
     setFullscreenOverlayOpen(false)
   }, [setFullscreenOverlayOpen])
 
+  // Derive existing slugs for unique slug generation
+  const existingSlugs = useMemo(
+    () => new Set(llmConnections.map(c => c.slug)),
+    [llmConnections],
+  )
+
   // OnboardingWizard hook for editing API connection
   const apiSetupOnboarding = useOnboarding({
     initialStep: 'api-setup',
-    enableCreateNewConnections: true,
     onConfigSaved: refreshLlmConnections,
     onComplete: () => {
       closeApiSetup()
@@ -533,13 +538,15 @@ export default function AiSettingsPage() {
       closeApiSetup()
       apiSetupOnboarding.reset()
     },
+    editingSlug: editingConnectionSlug,
+    existingSlugs,
   })
 
   const openApiSetup = useCallback((connectionSlug?: string) => {
-    apiSetupOnboarding.setTargetConnectionSlug(connectionSlug ?? null)
+    setEditingConnectionSlug(connectionSlug || null)
     setShowApiSetup(true)
     setFullscreenOverlayOpen(true)
-  }, [apiSetupOnboarding, setFullscreenOverlayOpen])
+  }, [setFullscreenOverlayOpen])
 
   const handleApiSetupFinish = useCallback(() => {
     closeApiSetup()
