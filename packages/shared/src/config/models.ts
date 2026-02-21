@@ -86,8 +86,12 @@ export const MODEL_REGISTRY: ModelDefinition[] = [
   },
 
   // ----------------------------------------
-  // OpenAI Codex Models (via ChatGPT Plus)
-  // Model IDs match actual OpenAI model slugs
+  // OpenAI Codex Models — FALLBACK entries only.
+  // At runtime, models are discovered dynamically via model/list from the Codex app-server.
+  // See fetchAndStoreCodexModels() in ipc.ts. These entries are used when:
+  //   - App-server is not running (e.g., first launch before auth)
+  //   - model/list call fails (network, timeout)
+  //   - Offline mode
   // ----------------------------------------
   {
     id: 'gpt-5.3-codex',
@@ -218,7 +222,9 @@ export function getModelDisplayName(modelId: string): string {
 }
 
 /**
- * Get short display name for a model ID (without version number).
+ * Get short display name for a model ID.
+ * For registry models, uses the defined shortName.
+ * For non-registry models, preserves version info to avoid duplicate names.
  */
 export function getModelShortName(modelId: string): string {
   const model = getModelById(modelId);
@@ -227,9 +233,15 @@ export function getModelShortName(modelId: string): string {
   if (modelId.includes('/')) {
     return modelId.split('/').pop() || modelId;
   }
-  // Fallback: strip claude- prefix and date suffix, then capitalize
-  const stripped = modelId.replace('claude-', '').replace(/-[\d.-]+$/, '');
-  return stripped.charAt(0).toUpperCase() + stripped.slice(1);
+  // Fallback: strip claude- prefix, keep version for disambiguation
+  // e.g., "glm-5" → "Glm 5", "glm-4.7" → "Glm 4.7"
+  const stripped = modelId.replace('claude-', '');
+  const parts = stripped.split('-');
+  const first = parts[0];
+  if (!first) return modelId;
+  const name = first.charAt(0).toUpperCase() + first.slice(1);
+  const version = parts.slice(1).join('.');
+  return version ? `${name} ${version}` : name;
 }
 
 /**
